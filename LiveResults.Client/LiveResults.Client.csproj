@@ -172,9 +172,17 @@
     <Compile Include="NewSSFTimingComp.Designer.cs">
       <DependentUpon>NewSSFTimingComp.cs</DependentUpon>
     </Compile>
+    <Compile Include="NewTotalResultsComp.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="NewTotalResultsComp.Designer.cs">
+      <DependentUpon>NewTotalResultsComp.cs</DependentUpon>
+    </Compile>
     <Compile Include="Parsers\IofXmlParser.cs" />
     <Compile Include="Parsers\IofXmlV3Parser.cs" />
     <Compile Include="Parsers\MeOsParser.cs" />
+    <Compile Include="Parsers\OlaParser.cs" />
+    <Compile Include="Parsers\TotalParser.cs" />
     <Compile Include="Parsers\TulospalveluParser.cs" />
     <Compile Include="Parsers\RaceTimerParser.cs" />
     <Compile Include="Parsers\SSFTimingParser.cs" />
@@ -211,7 +219,6 @@
     </Compile>
     <Compile Include="Parsers\OSParser.cs" />
     <Compile Include="Parsers\OEParser.cs" />
-    <Compile Include="Parsers\OlaParser.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <EmbeddedResource Include="FrmMonitor.resx">
@@ -239,6 +246,9 @@
     <EmbeddedResource Include="NewOLAComp.resx">
       <SubType>Designer</SubType>
       <DependentUpon>NewOLAComp.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="NewTotalResultsComp.resx">
+      <DependentUpon>NewTotalResultsComp.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="OEForm.resx">
       <SubType>Designer</SubType>

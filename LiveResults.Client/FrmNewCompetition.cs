@@ -235,5 +235,11 @@ namespace LiveResults.Client
             NewMeosComp frm = new NewMeosComp();
             frm.ShowDialog(this);
         }
+
+        private void button6_Click(object sender, EventArgs e)
+        {
+            NewTotalResultsComp frm = new NewTotalResultsComp();
+            frm.ShowDialog(this);
+        }
     }
 }

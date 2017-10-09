@@ -16,6 +16,11 @@ namespace LiveResults.Model
    
     public class EmmaMysqlClient : IDisposable
     {
+        private readonly bool m_calculateTotals;
+        private MySqlConnection m_totalConnection;
+        private readonly string m_totalConnStr;
+        private readonly int m_etappNr;
+
         public delegate void ResultChangedDelegate(Runner runner, int position);
         public event ResultChangedDelegate ResultChanged;
 
@@ -140,6 +145,21 @@ namespace LiveResults.Model
             m_connStr = "Database=" + database + ";Data Source="+server+";User Id="+user+";Password="+pass;
             m_connection = new MySqlConnection(m_connStr);
             m_compID = competitionID;
+
+
+            m_calculateTotals = ConfigurationManager.AppSettings["calculateTotals"] == "true";
+            if (m_calculateTotals)
+            {
+                m_etappNr = Int32.Parse(ConfigurationManager.AppSettings["etappNr"]);
+
+                string tserver = ConfigurationManager.AppSettings["totalServer"];
+                if (tserver == null) m_calculateTotals = false;
+                else
+                {
+                    string[] parts = tserver.Split(';');
+                    m_totalConnStr = "Database=" + parts[3] + ";Data Source=" + parts[0] + ";User Id=" + parts[1] + ";Password=" + parts[2];
+                }
+            }
         }
 
         private void ResetUpdated()
@@ -727,6 +747,12 @@ namespace LiveResults.Model
             {
                 try
                 {
+                    if (m_calculateTotals)
+                    {
+                        m_totalConnection = new MySqlConnection(m_totalConnStr);
+                        m_totalConnection.Open();
+                        SetCodePage(m_totalConnection);
+                    }
                     if (!runOffline)
                     {
                         m_connection = new MySqlConnection(m_connStr);
@@ -737,13 +763,7 @@ namespace LiveResults.Model
                     {
                         if (m_itemsToUpdate.Count > 0)
                         {
-                            if (runOffline)
-                            {
-                                m_itemsToUpdate.RemoveAt(0);
-                                continue;
-                            }
-
-                            using (MySqlCommand cmd = m_connection.CreateCommand())
+                            using (MySqlCommand cmd = m_connection.CreateCommand(), cmdT = m_totalConnection.CreateCommand())
                             {
                                 var item = m_itemsToUpdate[0];
                                 if (item is RadioControl)
@@ -759,7 +779,7 @@ namespace LiveResults.Model
 
                                     try
                                     {
-                                        cmd.ExecuteNonQuery();
+                                        if (!runOffline) cmd.ExecuteNonQuery();
                                     }
                                     catch (Exception ee)
                                     {
@@ -784,7 +804,7 @@ namespace LiveResults.Model
 
                                     try
                                     {
-                                        cmd.ExecuteNonQuery();
+                                        if (!runOffline) cmd.ExecuteNonQuery();
                                     }
                                     catch (Exception ee)
                                     {
@@ -805,11 +825,11 @@ namespace LiveResults.Model
                                     cmd.CommandText = "delete from results where tavid= ?compid and dbid = ?id";
                                     try
                                     {
-                                        cmd.ExecuteNonQuery();
+                                        if (!runOffline) cmd.ExecuteNonQuery();
                                         cmd.CommandText = "delete from runners where tavid= ?compid and dbid = ?id";
-                                        cmd.ExecuteNonQuery();
+                                        if (!runOffline) cmd.ExecuteNonQuery();
                                         cmd.CommandText = "delete from runneraliases where compid= ?compid and id = ?id";
-                                        cmd.ExecuteNonQuery();
+                                        if (!runOffline) cmd.ExecuteNonQuery();
                                     }
                                     catch (Exception ee)
                                     {
@@ -819,10 +839,40 @@ namespace LiveResults.Model
                                         throw new ApplicationException("Could not delete runner " + r + " on server due to: " + ee.Message, ee);
                                     }
                                     cmd.Parameters.Clear();
+
+                                    // TODO: Delete total results?
                                 }
                                 else if (item is Runner)
                                 {
                                     var r = item as Runner;
+
+                                    int idrunners = 0;  // id for total results
+
+                                    if (m_calculateTotals) {
+                                        // Regardless of change, for total results we need to get this runners id or create new. (Cannot use dbid as it is different for each stage)
+                                        
+                                        cmdT.Parameters.Clear();
+                                        cmdT.Parameters.AddWithValue("?name", Encoding.UTF8.GetBytes(r.Name));
+                                        cmdT.Parameters.AddWithValue("?club", Encoding.UTF8.GetBytes(r.Club ?? ""));
+                                        cmdT.Parameters.AddWithValue("?class", Encoding.UTF8.GetBytes(r.Class));
+                                        cmdT.CommandText = "SELECT idrunners FROM runners WHERE name = ?name AND club = ?club AND class = ?class";
+                                        MySqlDataReader reader = cmdT.ExecuteReader();
+                                        if (reader.Read())
+                                        {
+                                            idrunners = Convert.ToInt32(reader["idrunners"]);
+                                            reader.Close();
+                                        }
+                                        else
+                                        {
+                                            reader.Close();
+                                            cmdT.CommandText = "INSERT INTO runners (name,club,class) VALUES (?name,?club,?class)";
+                                            cmdT.ExecuteNonQuery();
+                                            idrunners = Convert.ToInt32(cmdT.LastInsertedId);
+
+                                        }
+
+                                    }
+
                                     if (r.RunnerUpdated)
                                     {
                                         cmd.Parameters.Clear();
@@ -837,7 +887,7 @@ namespace LiveResults.Model
 
                                         try
                                         {
-                                            cmd.ExecuteNonQuery();
+                                            if (!runOffline) cmd.ExecuteNonQuery();
                                         }
                                         catch (Exception ee)
                                         {
@@ -857,7 +907,7 @@ namespace LiveResults.Model
                                             cmd.Parameters.AddWithValue("?id", r.ID);
                                             try
                                             {
-                                                cmd.ExecuteNonQuery();
+                                                if (!runOffline) cmd.ExecuteNonQuery();
                                             }
                                             catch (Exception ee)
                                             {
@@ -867,6 +917,8 @@ namespace LiveResults.Model
 
                                         FireLogMsg("Runner " + r.Name + " updated in DB");
                                         r.RunnerUpdated = false;
+
+                                        // For total results, we don't care if runner is updated (change of name,club,class will create new record, can't be avoided)
                                     }
                                     if (r.ResultUpdated)
                                     {
@@ -876,11 +928,70 @@ namespace LiveResults.Model
                                         cmd.Parameters.AddWithValue("?time", r.Time);
                                         cmd.Parameters.AddWithValue("?status", r.Status);
                                         cmd.CommandText = "REPLACE INTO results (tavid,dbid,control,time,status,changed) VALUES(?compid,?id,1000,?time,?status,Now())";
-                                        cmd.ExecuteNonQuery();
+                                        if (!runOffline) cmd.ExecuteNonQuery();
                                         cmd.Parameters.Clear();
 
                                         FireLogMsg("Runner " + r.Name + "s result updated in DB");
                                         r.ResultUpdated = false;
+
+                                        //Total results.
+                                        if (m_calculateTotals) {
+                                            cmdT.Parameters.Clear();
+                                            cmdT.Parameters.AddWithValue("?idrunners", idrunners);
+                                            int totaltime;
+                                            int totalstatus;
+                                            
+                                            if (m_etappNr == 1)
+                                            {
+                                                // For first stage total time and status is same as for the stage.
+                                                totaltime = r.Time;
+                                                totalstatus = r.Status;
+                                            }
+                                            else
+                                            {
+                                                // Get total time and status from previous stage
+                                                cmdT.CommandText = "SELECT totaltid,totalstatus FROM etappresults WHERE idrunners=?idrunners AND etappnr = " + (m_etappNr - 1);
+                                                MySqlDataReader reader = cmdT.ExecuteReader();
+                                                if (reader.Read())
+                                                {
+                                                    // Result exist for previous stage
+                                                    int previousstatus = Convert.ToInt32(reader["totalstatus"]);
+                                                    int previoustotaltime = Convert.ToInt32(reader["totaltid"]);
+
+                                                    totaltime = previoustotaltime + r.Time;
+
+                                                    if (previousstatus == 0)
+                                                    {
+                                                        // Previous Passed. New total status is this competition status
+                                                        totalstatus = r.Status;
+                                                    }
+                                                    else
+                                                    {
+                                                        // For simplicity we keep previous status it is not passed, no total time calculated
+                                                        totalstatus = previousstatus;
+                                                    }
+
+                                                }
+                                                else
+                                                {
+                                                    // No result exist. Endast tävlande som sprungit alla etapper får totalresultat
+                                                    totalstatus = 999; // Not Participating
+                                                    totaltime = -9;
+
+                                                }
+                                                reader.Close();
+                                            }
+
+                                            cmdT.Parameters.AddWithValue("?etappnr", m_etappNr);
+                                            cmdT.Parameters.AddWithValue("?time", r.Time);
+                                            cmdT.Parameters.AddWithValue("?status", r.Status);
+                                            cmdT.Parameters.AddWithValue("?totaltime", totaltime);
+                                            cmdT.Parameters.AddWithValue("?totalstatus", totalstatus);
+                                            
+                                            cmdT.CommandText = "REPLACE INTO etappresults (idrunners,etappnr,etapptid,totaltid,etappstatus,totalstatus) VALUES (?idrunners,?etappnr,?time,?totaltime,?status,?totalstatus)";
+                                            cmdT.ExecuteNonQuery();
+
+                                        }
                                     }
                                     if (r.StartTimeUpdated)
                                     {
@@ -890,10 +1001,12 @@ namespace LiveResults.Model
                                         cmd.Parameters.AddWithValue("?starttime", r.StartTime);
                                         cmd.Parameters.AddWithValue("?status", r.Status);
                                         cmd.CommandText = "REPLACE INTO results (tavid,dbid,control,time,status,changed) VALUES(?compid,?id,100,?starttime,?status,Now())";
-                                        cmd.ExecuteNonQuery();
+                                        if (!runOffline) cmd.ExecuteNonQuery();
                                         cmd.Parameters.Clear();
                                         FireLogMsg("Runner " + r.Name + "s starttime updated in DB");
                                         r.StartTimeUpdated = false;
+
+                                        // TODO: Use Start time for total results?
                                     }
                                     if (r.HasUpdatedSplitTimes())
                                     {
@@ -910,11 +1023,13 @@ namespace LiveResults.Model
                                             cmd.Parameters["?time"].Value = t.Time;
                                             cmd.CommandText = "REPLACE INTO results (tavid,dbid,control,time,status,changed) VALUES(" + m_compID + "," + r.ID + "," + t.Control + "," + t.Time +
                                                               ",0,Now())";
-                                            cmd.ExecuteNonQuery();
+                                            if (!runOffline) cmd.ExecuteNonQuery();
                                             t.Updated = false;
                                             FireLogMsg("Runner " + r.Name + " splittime{" + t.Control + "} updated in DB");
                                         }
                                         cmd.Parameters.Clear();
+
+                                        // Split times doesn't matter for total results
                                     }
                                 }
 
@@ -941,6 +1056,13 @@ namespace LiveResults.Model
                         m_connection.Close();
                         m_connection.Dispose();
                         m_connection = null;
+                    }
+
+                    if (m_totalConnection != null)
+                    {
+                        m_totalConnection.Close();
+                        m_totalConnection.Dispose();
+                        m_totalConnection = null;
                     }
                 }
             }
