@@ -82,7 +82,7 @@ namespace LiveResults.Client
                     IDbCommand cmd = m_connection.CreateCommand();
 
 
-                    string baseCommand = "SELECT etappresults.changed, etappresults.idrunners, etappnr, totaltid, totalstatus, name, club, class FROM etappresults, runners WHERE etappresults.idrunners = runners.idrunners AND etappresults.changed > " + paramOper;
+                    string baseCommand = "SELECT etappresults.changed, etappresults.idrunners, etappnr, totaltid, totalstatus, predictionstarttime, name, club, class FROM etappresults, runners WHERE etappresults.idrunners = runners.idrunners AND etappresults.changed > " + paramOper;
 
                     ReadRadioControls();
 
@@ -141,7 +141,7 @@ namespace LiveResults.Client
 
                                     time = -9;
                                     if (reader["totaltid"] != null && reader["totaltid"] != DBNull.Value)
-                                        time = Convert.ToInt32(reader["totaltid"].ToString());
+                                        time = Convert.ToInt32(reader["totaltid"]);
 
                                     name = (reader["name"] as string);
 
@@ -149,6 +149,7 @@ namespace LiveResults.Client
                                     classN = (reader["class"] as string);
                                     status = Convert.ToInt32(reader["totalstatus"]);
                                     etappnr = Convert.ToInt32(reader["etappnr"]);
+                                    iStartTime = Convert.ToInt32(reader["predictionstarttime"]);
                                 }
                                 catch (Exception ee)
                                 {
@@ -170,7 +171,7 @@ namespace LiveResults.Client
                                             RunnerName = name,
                                             RunnerClub = club,
                                             Class = classN,
-                                            StartTime = 0,
+                                            StartTime = iStartTime,
                                             Time = time,
                                             Status = status
 
@@ -196,7 +197,7 @@ namespace LiveResults.Client
                                             RunnerName = name,
                                             RunnerClub = club,
                                             Class = classN,
-                                            StartTime = 0,
+                                            StartTime = iStartTime,
                                             Time = -2,
                                             Status = status,
                                             SplitTimes = times

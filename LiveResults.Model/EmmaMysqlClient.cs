@@ -763,94 +763,18 @@ namespace LiveResults.Model
                     {
                         if (m_itemsToUpdate.Count > 0)
                         {
-                            using (MySqlCommand cmd = m_connection.CreateCommand(), cmdT = m_totalConnection.CreateCommand())
+                            var item = m_itemsToUpdate[0];
+                            if (m_calculateTotals)
                             {
-                                var item = m_itemsToUpdate[0];
-                                if (item is RadioControl)
+                                using (MySqlCommand cmdT = m_totalConnection.CreateCommand())
                                 {
-                                    var r = item as RadioControl;
-                                    cmd.Parameters.Clear();
-                                    cmd.Parameters.AddWithValue("?compid", m_compID);
-                                    cmd.Parameters.AddWithValue("?name", Encoding.UTF8.GetBytes(r.ClassName));
-                                    cmd.Parameters.AddWithValue("?corder", r.Order);
-                                    cmd.Parameters.AddWithValue("?code", r.Code);
-                                    cmd.Parameters.AddWithValue("?cname", Encoding.UTF8.GetBytes(r.ControlName));
-                                    cmd.CommandText = "REPLACE INTO splitcontrols(tavid,classname,corder,code,name) VALUES (?compid,?name,?corder,?code,?cname)";
+                                    if (item is Runner)
+                                    {
+                                        var r = item as Runner;
+                                        int idrunners = 0;
 
-                                    try
-                                    {
-                                        if (!runOffline) cmd.ExecuteNonQuery();
-                                    }
-                                    catch (Exception ee)
-                                    {
-                                        //Move failing runner last
-                                        m_itemsToUpdate.Add(r);
-                                        m_itemsToUpdate.RemoveAt(0);
-                                        throw new ApplicationException("Could not add radiocontrol " + r.ControlName + ", " + r.ClassName + ", " + r.Code + " to server due to: " + ee.Message, ee);
-                                    }
-                                    cmd.Parameters.Clear();
-                                }
-                                else if (item is DelRadioControl)
-                                {
-                                    var dr = item as DelRadioControl;
-                                    var r = dr.ToDelete;
-                                    cmd.Parameters.Clear();
-                                    cmd.Parameters.AddWithValue("?compid", m_compID);
-                                    cmd.Parameters.AddWithValue("?name", Encoding.UTF8.GetBytes(r.ClassName));
-                                    cmd.Parameters.AddWithValue("?corder", r.Order);
-                                    cmd.Parameters.AddWithValue("?code", r.Code);
-                                    cmd.Parameters.AddWithValue("?cname", Encoding.UTF8.GetBytes(r.ControlName));
-                                    cmd.CommandText = "delete from splitcontrols where tavid= ?compid and classname = ?name and corder = ?corder and code = ?code and name = ?cname";
-
-                                    try
-                                    {
-                                        if (!runOffline) cmd.ExecuteNonQuery();
-                                    }
-                                    catch (Exception ee)
-                                    {
-                                        //Move failing runner last
-                                        m_itemsToUpdate.Add(r);
-                                        m_itemsToUpdate.RemoveAt(0);
-                                        throw new ApplicationException("Could not delete radiocontrol " + r.ControlName + ", " + r.ClassName + ", " + r.Code + " to server due to: " + ee.Message, ee);
-                                    }
-                                    cmd.Parameters.Clear();
-                                }
-                                else if (item is DelRunner)
-                                {
-                                    var dr = item as DelRunner;
-                                    var r = dr.RunnerID;
-                                    cmd.Parameters.Clear();
-                                    cmd.Parameters.AddWithValue("?compid", m_compID);
-                                    cmd.Parameters.AddWithValue("?id", r);
-                                    cmd.CommandText = "delete from results where tavid= ?compid and dbid = ?id";
-                                    try
-                                    {
-                                        if (!runOffline) cmd.ExecuteNonQuery();
-                                        cmd.CommandText = "delete from runners where tavid= ?compid and dbid = ?id";
-                                        if (!runOffline) cmd.ExecuteNonQuery();
-                                        cmd.CommandText = "delete from runneraliases where compid= ?compid and id = ?id";
-                                        if (!runOffline) cmd.ExecuteNonQuery();
-                                    }
-                                    catch (Exception ee)
-                                    {
-                                        //Move failing runner last
-                                        m_itemsToUpdate.Add(dr);
-                                        m_itemsToUpdate.RemoveAt(0);
-                                        throw new ApplicationException("Could not delete runner " + r + " on server due to: " + ee.Message, ee);
-                                    }
-                                    cmd.Parameters.Clear();
-
-                                    // TODO: Delete total results?
-                                }
-                                else if (item is Runner)
-                                {
-                                    var r = item as Runner;
-
-                                    int idrunners = 0;  // id for total results
-
-                                    if (m_calculateTotals) {
                                         // Regardless of change, for total results we need to get this runners id or create new. (Cannot use dbid as it is different for each stage)
-                                        
+
                                         cmdT.Parameters.Clear();
                                         cmdT.Parameters.AddWithValue("?name", Encoding.UTF8.GetBytes(r.Name));
                                         cmdT.Parameters.AddWithValue("?club", Encoding.UTF8.GetBytes(r.Club ?? ""));
@@ -868,79 +792,21 @@ namespace LiveResults.Model
                                             cmdT.CommandText = "INSERT INTO runners (name,club,class) VALUES (?name,?club,?class)";
                                             cmdT.ExecuteNonQuery();
                                             idrunners = Convert.ToInt32(cmdT.LastInsertedId);
-
                                         }
 
-                                    }
+                                        // r.RunnerUpdated - For total results, we don't care if runner is updated (change of name,club,class will create new record, can't be avoided)
 
-                                    if (r.RunnerUpdated)
-                                    {
-                                        cmd.Parameters.Clear();
-                                        cmd.Parameters.AddWithValue("?compid", m_compID);
-                                        cmd.Parameters.AddWithValue("?name", Encoding.UTF8.GetBytes(r.Name));
-                                        cmd.Parameters.AddWithValue("?club", Encoding.UTF8.GetBytes(r.Club ?? ""));
-                                        cmd.Parameters.AddWithValue("?class", Encoding.UTF8.GetBytes(r.Class));
+                                        if (r.StartTimeUpdated) r.ResultUpdated = true; //Start time for total results saved in ResultUpdated
 
-                                        cmd.Parameters.AddWithValue("?id", r.ID);
-                                        cmd.CommandText = "REPLACE INTO runners (tavid,name,club,class,brick,dbid) VALUES (?compid,?name,?club,?class,0,?id)";
-                                       
-
-                                        try
+                                        if (r.ResultUpdated)
                                         {
-                                            if (!runOffline) cmd.ExecuteNonQuery();
-                                        }
-                                        catch (Exception ee)
-                                        {
-                                            //Move failing runner last
-                                            m_itemsToUpdate.Add(r);
-                                            m_itemsToUpdate.RemoveAt(0);
-                                            throw new ApplicationException(
-                                                "Could not add runner " + r.Name + ", " + r.Club + ", " + r.Class + " to server due to: " + ee.Message, ee);
-                                        }
-                                        cmd.Parameters.Clear();
 
-                                        if (!string.IsNullOrEmpty(r.SourceId) && r.SourceId != r.ID.ToString(CultureInfo.InvariantCulture))
-                                        {
-                                            cmd.CommandText = "REPLACE INTO runneraliases (compid,sourceid,id) VALUES (?compid,?sourceId,?id)";
-                                            cmd.Parameters.AddWithValue("?compid", m_compID);
-                                            cmd.Parameters.AddWithValue("?sourceId", r.SourceId);
-                                            cmd.Parameters.AddWithValue("?id", r.ID);
-                                            try
-                                            {
-                                                if (!runOffline) cmd.ExecuteNonQuery();
-                                            }
-                                            catch (Exception ee)
-                                            {
-                                                FireLogMsg("Could not add alias for runner " + r.Name + " in DB [" + ee.Message + "]");
-                                            }
-                                        }
-
-                                        FireLogMsg("Runner " + r.Name + " updated in DB");
-                                        r.RunnerUpdated = false;
-
-                                        // For total results, we don't care if runner is updated (change of name,club,class will create new record, can't be avoided)
-                                    }
-                                    if (r.ResultUpdated)
-                                    {
-                                        cmd.Parameters.Clear();
-                                        cmd.Parameters.AddWithValue("?compid", m_compID);
-                                        cmd.Parameters.AddWithValue("?id", r.ID);
-                                        cmd.Parameters.AddWithValue("?time", r.Time);
-                                        cmd.Parameters.AddWithValue("?status", r.Status);
-                                        cmd.CommandText = "REPLACE INTO results (tavid,dbid,control,time,status,changed) VALUES(?compid,?id,1000,?time,?status,Now())";
-                                        if (!runOffline) cmd.ExecuteNonQuery();
-                                        cmd.Parameters.Clear();
-
-                                        FireLogMsg("Runner " + r.Name + "s result updated in DB");
-                                        r.ResultUpdated = false;
-
-                                        //Total results.
-                                        if (m_calculateTotals) {
                                             cmdT.Parameters.Clear();
                                             cmdT.Parameters.AddWithValue("?idrunners", idrunners);
                                             int totaltime;
                                             int totalstatus;
-                                            
+                                            int previoustotaltime = 0;
+
                                             if (m_etappNr == 1)
                                             {
                                                 // For first stage total time and status is same as for the stage.
@@ -951,12 +817,12 @@ namespace LiveResults.Model
                                             {
                                                 // Get total time and status from previous stage
                                                 cmdT.CommandText = "SELECT totaltid,totalstatus FROM etappresults WHERE idrunners=?idrunners AND etappnr = " + (m_etappNr - 1);
-                                                MySqlDataReader reader = cmdT.ExecuteReader();
+                                                reader = cmdT.ExecuteReader();
                                                 if (reader.Read())
                                                 {
                                                     // Result exist for previous stage
                                                     int previousstatus = Convert.ToInt32(reader["totalstatus"]);
-                                                    int previoustotaltime = Convert.ToInt32(reader["totaltid"]);
+                                                    previoustotaltime = Convert.ToInt32(reader["totaltid"]);
 
                                                     totaltime = previoustotaltime + r.Time;
 
@@ -987,54 +853,199 @@ namespace LiveResults.Model
                                             cmdT.Parameters.AddWithValue("?status", r.Status);
                                             cmdT.Parameters.AddWithValue("?totaltime", totaltime);
                                             cmdT.Parameters.AddWithValue("?totalstatus", totalstatus);
-                                            
-                                            cmdT.CommandText = "REPLACE INTO etappresults (idrunners,etappnr,etapptid,totaltid,etappstatus,totalstatus) VALUES (?idrunners,?etappnr,?time,?totaltime,?status,?totalstatus)";
+                                            cmdT.Parameters.AddWithValue("?etappstarttime", r.StartTime);
+                                            cmdT.Parameters.AddWithValue("?predictionstarttime", r.StartTime - previoustotaltime); //Prediktion av hur länge man varit ute totalt = etapp starttid + totaltid föregående etapp
+
+                                            cmdT.CommandText = "REPLACE INTO etappresults (idrunners,etappnr,etapptid,totaltid,etappstatus,totalstatus,etappstarttime,predictionstarttime) VALUES (?idrunners,?etappnr,?time,?totaltime,?status,?totalstatus,?etappstarttime,?predictionstarttime)";
                                             cmdT.ExecuteNonQuery();
 
+                                           
                                         }
-                                    }
-                                    if (r.StartTimeUpdated)
-                                    {
-                                        cmd.Parameters.Clear();
-                                        cmd.Parameters.AddWithValue("?compid", m_compID);
-                                        cmd.Parameters.AddWithValue("?id", r.ID);
-                                        cmd.Parameters.AddWithValue("?starttime", r.StartTime);
-                                        cmd.Parameters.AddWithValue("?status", r.Status);
-                                        cmd.CommandText = "REPLACE INTO results (tavid,dbid,control,time,status,changed) VALUES(?compid,?id,100,?starttime,?status,Now())";
-                                        if (!runOffline) cmd.ExecuteNonQuery();
-                                        cmd.Parameters.Clear();
-                                        FireLogMsg("Runner " + r.Name + "s starttime updated in DB");
-                                        r.StartTimeUpdated = false;
-
-                                        // TODO: Use Start time for total results?
-                                    }
-                                    if (r.HasUpdatedSplitTimes())
-                                    {
-                                        List<SplitTime> splitTimes = r.GetUpdatedSplitTimes();
-
-                                        cmd.Parameters.Clear();
-                                        cmd.Parameters.AddWithValue("?compid", m_compID);
-                                        cmd.Parameters.AddWithValue("?id", r.ID);
-                                        cmd.Parameters.AddWithValue("?control", -1);
-                                        cmd.Parameters.AddWithValue("?time", -1);
-                                        foreach (SplitTime t in splitTimes)
-                                        {
-                                            cmd.Parameters["?control"].Value = t.Control;
-                                            cmd.Parameters["?time"].Value = t.Time;
-                                            cmd.CommandText = "REPLACE INTO results (tavid,dbid,control,time,status,changed) VALUES(" + m_compID + "," + r.ID + "," + t.Control + "," + t.Time +
-                                                              ",0,Now())";
-                                            if (!runOffline) cmd.ExecuteNonQuery();
-                                            t.Updated = false;
-                                            FireLogMsg("Runner " + r.Name + " splittime{" + t.Control + "} updated in DB");
-                                        }
-                                        cmd.Parameters.Clear();
-
-                                        // Split times doesn't matter for total results
                                     }
                                 }
-
-                                m_itemsToUpdate.RemoveAt(0);
                             }
+
+                            if (!runOffline)
+                            {
+                                using (MySqlCommand cmd = m_connection.CreateCommand())
+                                {
+                                    
+                                    if (item is RadioControl)
+                                    {
+                                        var r = item as RadioControl;
+                                        cmd.Parameters.Clear();
+                                        cmd.Parameters.AddWithValue("?compid", m_compID);
+                                        cmd.Parameters.AddWithValue("?name", Encoding.UTF8.GetBytes(r.ClassName));
+                                        cmd.Parameters.AddWithValue("?corder", r.Order);
+                                        cmd.Parameters.AddWithValue("?code", r.Code);
+                                        cmd.Parameters.AddWithValue("?cname", Encoding.UTF8.GetBytes(r.ControlName));
+                                        cmd.CommandText = "REPLACE INTO splitcontrols(tavid,classname,corder,code,name) VALUES (?compid,?name,?corder,?code,?cname)";
+
+                                        try
+                                        {
+                                            cmd.ExecuteNonQuery();
+                                        }
+                                        catch (Exception ee)
+                                        {
+                                            //Move failing runner last
+                                            m_itemsToUpdate.Add(r);
+                                            m_itemsToUpdate.RemoveAt(0);
+                                            throw new ApplicationException("Could not add radiocontrol " + r.ControlName + ", " + r.ClassName + ", " + r.Code + " to server due to: " + ee.Message, ee);
+                                        }
+                                        cmd.Parameters.Clear();
+                                    }
+                                    else if (item is DelRadioControl)
+                                    {
+                                        var dr = item as DelRadioControl;
+                                        var r = dr.ToDelete;
+                                        cmd.Parameters.Clear();
+                                        cmd.Parameters.AddWithValue("?compid", m_compID);
+                                        cmd.Parameters.AddWithValue("?name", Encoding.UTF8.GetBytes(r.ClassName));
+                                        cmd.Parameters.AddWithValue("?corder", r.Order);
+                                        cmd.Parameters.AddWithValue("?code", r.Code);
+                                        cmd.Parameters.AddWithValue("?cname", Encoding.UTF8.GetBytes(r.ControlName));
+                                        cmd.CommandText = "delete from splitcontrols where tavid= ?compid and classname = ?name and corder = ?corder and code = ?code and name = ?cname";
+
+                                        try
+                                        {
+                                            cmd.ExecuteNonQuery();
+                                        }
+                                        catch (Exception ee)
+                                        {
+                                            //Move failing runner last
+                                            m_itemsToUpdate.Add(r);
+                                            m_itemsToUpdate.RemoveAt(0);
+                                            throw new ApplicationException("Could not delete radiocontrol " + r.ControlName + ", " + r.ClassName + ", " + r.Code + " to server due to: " + ee.Message, ee);
+                                        }
+                                        cmd.Parameters.Clear();
+                                    }
+                                    else if (item is DelRunner)
+                                    {
+                                        var dr = item as DelRunner;
+                                        var r = dr.RunnerID;
+                                        cmd.Parameters.Clear();
+                                        cmd.Parameters.AddWithValue("?compid", m_compID);
+                                        cmd.Parameters.AddWithValue("?id", r);
+                                        cmd.CommandText = "delete from results where tavid= ?compid and dbid = ?id";
+                                        try
+                                        {
+                                            cmd.ExecuteNonQuery();
+                                            cmd.CommandText = "delete from runners where tavid= ?compid and dbid = ?id";
+                                            cmd.ExecuteNonQuery();
+                                            cmd.CommandText = "delete from runneraliases where compid= ?compid and id = ?id";
+                                            cmd.ExecuteNonQuery();
+                                        }
+                                        catch (Exception ee)
+                                        {
+                                            //Move failing runner last
+                                            m_itemsToUpdate.Add(dr);
+                                            m_itemsToUpdate.RemoveAt(0);
+                                            throw new ApplicationException("Could not delete runner " + r + " on server due to: " + ee.Message, ee);
+                                        }
+                                        cmd.Parameters.Clear();
+                                    }
+                                    else if (item is Runner)
+                                    {
+                                        var r = item as Runner;
+                                        if (r.RunnerUpdated)
+                                        {
+                                            cmd.Parameters.Clear();
+                                            cmd.Parameters.AddWithValue("?compid", m_compID);
+                                            cmd.Parameters.AddWithValue("?name", Encoding.UTF8.GetBytes(r.Name));
+                                            cmd.Parameters.AddWithValue("?club", Encoding.UTF8.GetBytes(r.Club ?? ""));
+                                            cmd.Parameters.AddWithValue("?class", Encoding.UTF8.GetBytes(r.Class));
+
+                                            cmd.Parameters.AddWithValue("?id", r.ID);
+                                            cmd.CommandText = "REPLACE INTO runners (tavid,name,club,class,brick,dbid) VALUES (?compid,?name,?club,?class,0,?id)";
+
+
+                                            try
+                                            {
+                                                cmd.ExecuteNonQuery();
+                                            }
+                                            catch (Exception ee)
+                                            {
+                                                //Move failing runner last
+                                                m_itemsToUpdate.Add(r);
+                                                m_itemsToUpdate.RemoveAt(0);
+                                                throw new ApplicationException(
+                                                    "Could not add runner " + r.Name + ", " + r.Club + ", " + r.Class + " to server due to: " + ee.Message, ee);
+                                            }
+                                            cmd.Parameters.Clear();
+
+                                            if (!string.IsNullOrEmpty(r.SourceId) && r.SourceId != r.ID.ToString(CultureInfo.InvariantCulture))
+                                            {
+                                                cmd.CommandText = "REPLACE INTO runneraliases (compid,sourceid,id) VALUES (?compid,?sourceId,?id)";
+                                                cmd.Parameters.AddWithValue("?compid", m_compID);
+                                                cmd.Parameters.AddWithValue("?sourceId", r.SourceId);
+                                                cmd.Parameters.AddWithValue("?id", r.ID);
+                                                try
+                                                {
+                                                    cmd.ExecuteNonQuery();
+                                                }
+                                                catch (Exception ee)
+                                                {
+                                                    FireLogMsg("Could not add alias for runner " + r.Name + " in DB [" + ee.Message + "]");
+                                                }
+                                            }
+
+                                            FireLogMsg("Runner " + r.Name + " updated in DB");
+                                            r.RunnerUpdated = false;
+                                        }
+                                        if (r.ResultUpdated)
+                                        {
+                                            cmd.Parameters.Clear();
+                                            cmd.Parameters.AddWithValue("?compid", m_compID);
+                                            cmd.Parameters.AddWithValue("?id", r.ID);
+                                            cmd.Parameters.AddWithValue("?time", r.Time);
+                                            cmd.Parameters.AddWithValue("?status", r.Status);
+                                            cmd.CommandText = "REPLACE INTO results (tavid,dbid,control,time,status,changed) VALUES(?compid,?id,1000,?time,?status,Now())";
+                                            cmd.ExecuteNonQuery();
+                                            cmd.Parameters.Clear();
+
+                                            FireLogMsg("Runner " + r.Name + "s result updated in DB");
+                                            r.ResultUpdated = false;
+
+ 
+                                        }
+                                        if (r.StartTimeUpdated)
+                                        {
+                                            cmd.Parameters.Clear();
+                                            cmd.Parameters.AddWithValue("?compid", m_compID);
+                                            cmd.Parameters.AddWithValue("?id", r.ID);
+                                            cmd.Parameters.AddWithValue("?starttime", r.StartTime);
+                                            cmd.Parameters.AddWithValue("?status", r.Status);
+                                            cmd.CommandText = "REPLACE INTO results (tavid,dbid,control,time,status,changed) VALUES(?compid,?id,100,?starttime,?status,Now())";
+                                            if (!runOffline) cmd.ExecuteNonQuery();
+                                            cmd.Parameters.Clear();
+                                            FireLogMsg("Runner " + r.Name + "s starttime updated in DB");
+                                            r.StartTimeUpdated = false;
+                                        }
+                                        if (r.HasUpdatedSplitTimes())
+                                        {
+                                            List<SplitTime> splitTimes = r.GetUpdatedSplitTimes();
+
+                                            cmd.Parameters.Clear();
+                                            cmd.Parameters.AddWithValue("?compid", m_compID);
+                                            cmd.Parameters.AddWithValue("?id", r.ID);
+                                            cmd.Parameters.AddWithValue("?control", -1);
+                                            cmd.Parameters.AddWithValue("?time", -1);
+                                            foreach (SplitTime t in splitTimes)
+                                            {
+                                                cmd.Parameters["?control"].Value = t.Control;
+                                                cmd.Parameters["?time"].Value = t.Time;
+                                                cmd.CommandText = "REPLACE INTO results (tavid,dbid,control,time,status,changed) VALUES(" + m_compID + "," + r.ID + "," + t.Control + "," + t.Time +
+                                                                  ",0,Now())";
+                                                if (!runOffline) cmd.ExecuteNonQuery();
+                                                t.Updated = false;
+                                                FireLogMsg("Runner " + r.Name + " splittime{" + t.Control + "} updated in DB");
+                                            }
+                                            cmd.Parameters.Clear();
+                                        }
+                                    }
+                                }
+                            }
+                            m_itemsToUpdate.RemoveAt(0);
                         }
                         else
                         {
