@@ -188,8 +188,15 @@ namespace LiveResults.Client
                                             ControlNo = etappnr,
                                             Time = (int)time
                                         };
-                                        times.Add(t);
+                                        if (time>0) times.Add(t);
 
+                                        int settotaltime = -2; // Total results not uploaded (only "splits")
+
+                                        if (status!=0 && status!=10 && status!=9)
+                                        {
+                                            // If status is not Valid (and final status, i.e. not "not activated" or "started") then we want to store result already before final stage
+                                            settotaltime = 0;
+                                        }
 
                                         var res = new Result
                                         {
@@ -198,7 +205,7 @@ namespace LiveResults.Client
                                             RunnerClub = club,
                                             Class = classN,
                                             StartTime = iStartTime,
-                                            Time = -2,
+                                            Time = settotaltime,
                                             Status = status,
                                             SplitTimes = times
 
