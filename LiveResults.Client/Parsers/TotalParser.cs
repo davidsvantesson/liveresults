@@ -190,13 +190,9 @@ namespace LiveResults.Client
                                         };
                                         if (time>0) times.Add(t);
 
-                                        int settotaltime = -2; // Total results not uploaded (only "splits")
+                                        int settotaltime = 0; // Add status already now
 
-                                        if (status!=0 && status!=10 && status!=9)
-                                        {
-                                            // If status is not Valid (and final status, i.e. not "not activated" or "started") then we want to store result already before final stage
-                                            settotaltime = 0;
-                                        }
+                                        if (status == 0) status = 9; // If status is OK then we set it to "Started" as status for last day is not known.
 
                                         var res = new Result
                                         {
