@@ -7,6 +7,8 @@ using LiveResults.CasparClient;
 #endif
 using LiveResults.Client.Parsers;
 using LiveResults.Model;
+using System.Configuration;
+using System.Data.SQLite;
 
 namespace LiveResults.Client
 {
@@ -240,6 +242,57 @@ namespace LiveResults.Client
         {
             NewTotalResultsComp frm = new NewTotalResultsComp();
             frm.ShowDialog(this);
+        }
+
+        private void button7_Click(object sender, EventArgs e)
+        {
+            // Create db
+            // Assumes it does not exist
+            string totaldb = ConfigurationManager.AppSettings["totalDatabase"];
+            if (totaldb == null) return;
+            SQLiteConnection m_connection;
+            string m_totalConnStr = "DataSource=" + totaldb + ";";
+            m_connection = new SQLiteConnection(m_totalConnStr);
+            m_connection.Open();
+            SQLiteCommand cmd = m_connection.CreateCommand();
+            cmd.CommandText = "CREATE TABLE \"etappresults\" ( `idrunners` INTEGER NOT NULL, `etappnr` INTEGER NOT NULL, `etapptid` INTEGER DEFAULT NULL, `totaltid` INTEGER DEFAULT NULL, `etappstatus` INTEGER DEFAULT NULL, `totalstatus` INTEGER DEFAULT NULL, `etappstarttime` INTEGER DEFAULT NULL, `predictionstarttime` INTEGER DEFAULT NULL, `changed` DATETIME DEFAULT(STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')), PRIMARY KEY(`idrunners`,`etappnr`) );" +
+                "CREATE TABLE `runners` ( `idrunners` INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, `name` TEXT, `club` TEXT, `class` TEXT, `changed` DATETIME DEFAULT(STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')) );" +
+                "CREATE TABLE \"settings\" ( `setting_id` INTEGER NOT NULL CHECK(setting_id=1), `etappnr` INTEGER NOT NULL, `startreadfromtime` DATETIME NOT NULL DEFAULT '2000-01-01 00:00:00', PRIMARY KEY(`setting_id`) );" +
+                "INSERT INTO settings (etappnr) VALUES (1);";
+            cmd.ExecuteNonQuery();
+
+            m_connection.Close();
+
+        }
+
+        private void button8_Click(object sender, EventArgs e)
+        {
+            // Set next etapp
+            string totaldb = ConfigurationManager.AppSettings["totalDatabase"];
+            if (totaldb == null) return;
+            SQLiteConnection m_connection;
+            string m_totalConnStr = "DataSource=" + totaldb + ";";
+            m_connection = new SQLiteConnection(m_totalConnStr);
+            m_connection.Open();
+            SQLiteCommand cmd = m_connection.CreateCommand();
+
+            // Hämta nuvarande etappnr
+            cmd.CommandText = "SELECT etappnr FROM settings WHERE setting_id=1";
+            SQLiteDataReader reader = cmd.ExecuteReader();
+            reader.Read();
+            int etappnr = Convert.ToInt32(reader["etappnr"]);
+            int nextetappnr = etappnr + 1;
+            reader.Close();
+
+            // Skapa nya resultatrader för nextetappnr (default Ej Start)
+            cmd.CommandText = "INSERT INTO etappresults (idrunners, etappnr, etapptid, totaltid, etappstatus, totalstatus, etappstarttime, predictionstarttime) SELECT idrunners, " + nextetappnr + ", 0, 0, 1, 1, 0, 0 FROM etappresults WHERE etappnr = " + etappnr;
+            cmd.ExecuteNonQuery();
+
+            cmd.CommandText = "UPDATE settings SET etappnr=" + nextetappnr + " WHERE setting_id=1";
+            cmd.ExecuteNonQuery();
+
+            m_connection.Close();
+
         }
     }
 }

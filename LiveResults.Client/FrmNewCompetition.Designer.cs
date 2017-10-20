@@ -35,12 +35,15 @@
             this.button4 = new System.Windows.Forms.Button();
             this.button1 = new System.Windows.Forms.Button();
             this.button5 = new System.Windows.Forms.Button();
+            this.button6 = new System.Windows.Forms.Button();
             this.label1 = new System.Windows.Forms.Label();
             this.lblInfo = new System.Windows.Forms.Label();
             this.label2 = new System.Windows.Forms.Label();
             this.flowLayoutPanel2 = new System.Windows.Forms.FlowLayoutPanel();
-            this.button6 = new System.Windows.Forms.Button();
+            this.button7 = new System.Windows.Forms.Button();
+            this.button8 = new System.Windows.Forms.Button();
             this.flowLayoutPanel1.SuspendLayout();
+            this.flowLayoutPanel2.SuspendLayout();
             this.SuspendLayout();
             // 
             // flowLayoutPanel1
@@ -56,7 +59,7 @@
             this.flowLayoutPanel1.Controls.Add(this.button6);
             this.flowLayoutPanel1.Location = new System.Drawing.Point(16, 29);
             this.flowLayoutPanel1.Name = "flowLayoutPanel1";
-            this.flowLayoutPanel1.Size = new System.Drawing.Size(463, 208);
+            this.flowLayoutPanel1.Size = new System.Drawing.Size(465, 208);
             this.flowLayoutPanel1.TabIndex = 0;
             this.flowLayoutPanel1.Paint += new System.Windows.Forms.PaintEventHandler(this.flowLayoutPanel1_Paint);
             // 
@@ -143,6 +146,16 @@
             this.button5.Click += new System.EventHandler(this.button5_Click);
             this.button5.MouseEnter += new System.EventHandler(this.button5_MouseEnter);
             // 
+            // button6
+            // 
+            this.button6.Location = new System.Drawing.Point(84, 99);
+            this.button6.Name = "button6";
+            this.button6.Size = new System.Drawing.Size(103, 90);
+            this.button6.TabIndex = 7;
+            this.button6.Text = "TotalResultat";
+            this.button6.UseVisualStyleBackColor = true;
+            this.button6.Click += new System.EventHandler(this.button6_Click);
+            // 
             // label1
             // 
             this.label1.AutoSize = true;
@@ -174,28 +187,40 @@
             this.flowLayoutPanel2.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
+            this.flowLayoutPanel2.Controls.Add(this.button7);
+            this.flowLayoutPanel2.Controls.Add(this.button8);
             this.flowLayoutPanel2.FlowDirection = System.Windows.Forms.FlowDirection.TopDown;
             this.flowLayoutPanel2.Location = new System.Drawing.Point(16, 345);
             this.flowLayoutPanel2.Name = "flowLayoutPanel2";
-            this.flowLayoutPanel2.Size = new System.Drawing.Size(463, 52);
+            this.flowLayoutPanel2.Size = new System.Drawing.Size(465, 98);
             this.flowLayoutPanel2.TabIndex = 4;
             this.flowLayoutPanel2.Paint += new System.Windows.Forms.PaintEventHandler(this.flowLayoutPanel2_Paint);
             // 
-            // button6
+            // button7
             // 
-            this.button6.Location = new System.Drawing.Point(84, 99);
-            this.button6.Name = "button6";
-            this.button6.Size = new System.Drawing.Size(103, 90);
-            this.button6.TabIndex = 7;
-            this.button6.Text = "TotalResultat";
-            this.button6.UseVisualStyleBackColor = true;
-            this.button6.Click += new System.EventHandler(this.button6_Click);
+            this.button7.Location = new System.Drawing.Point(3, 3);
+            this.button7.Name = "button7";
+            this.button7.Size = new System.Drawing.Size(103, 90);
+            this.button7.TabIndex = 8;
+            this.button7.Text = "Skapa ny TotalResultat (Initiera första etapp)";
+            this.button7.UseVisualStyleBackColor = true;
+            this.button7.Click += new System.EventHandler(this.button7_Click);
+            // 
+            // button8
+            // 
+            this.button8.Location = new System.Drawing.Point(112, 3);
+            this.button8.Name = "button8";
+            this.button8.Size = new System.Drawing.Size(103, 90);
+            this.button8.TabIndex = 9;
+            this.button8.Text = "Initiera nästa Etapp";
+            this.button8.UseVisualStyleBackColor = true;
+            this.button8.Click += new System.EventHandler(this.button8_Click);
             // 
             // FrmNewCompetition
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(491, 406);
+            this.ClientSize = new System.Drawing.Size(493, 452);
             this.Controls.Add(this.flowLayoutPanel2);
             this.Controls.Add(this.label2);
             this.Controls.Add(this.label1);
@@ -208,6 +233,7 @@
             this.KeyDown += new System.Windows.Forms.KeyEventHandler(this.FrmNewCompetition_KeyDown);
             this.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.FrmNewCompetition_KeyPress);
             this.flowLayoutPanel1.ResumeLayout(false);
+            this.flowLayoutPanel2.ResumeLayout(false);
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -227,5 +253,7 @@
         private System.Windows.Forms.Button button4;
         private System.Windows.Forms.Button button5;
         private System.Windows.Forms.Button button6;
+        private System.Windows.Forms.Button button7;
+        private System.Windows.Forms.Button button8;
     }
 }

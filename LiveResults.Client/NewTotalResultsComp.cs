@@ -14,7 +14,7 @@ using System.IO;
 using System.Xml.Serialization;
 using LiveResults.Model;
 using System.Configuration;
-using MySql.Data.MySqlClient;
+using System.Data.SQLite;
 
 namespace LiveResults.Client
 {
@@ -27,15 +27,14 @@ namespace LiveResults.Client
 
         private void button1_Click(object sender, EventArgs e)
         {
-            FrmMonitor monForm = new FrmMonitor();
+            FrmMonitor monForm = new FrmMonitor(true);
             this.Hide();
 
             string totalConnStr;
-            MySqlConnection totalConnection;
-            string tserver = ConfigurationManager.AppSettings["totalServer"];
-            string[] parts = tserver.Split(';');
-            totalConnStr = "Database=" + parts[3] + ";Data Source=" + parts[0] + ";User Id=" + parts[1] + ";Password=" + parts[2];
-            totalConnection = new MySqlConnection(totalConnStr);
+            SQLiteConnection totalConnection;
+            string totaldb = ConfigurationManager.AppSettings["totalDatabase"];
+            totalConnStr = "DataSource=" + totaldb + ";";
+            totalConnection = new SQLiteConnection(totalConnStr);
 
             TotalParser pars = new TotalParser(totalConnection, Convert.ToInt32(nrStages.Text));
             monForm.SetParser(pars as IExternalSystemResultParser);

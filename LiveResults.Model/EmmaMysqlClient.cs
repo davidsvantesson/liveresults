@@ -8,6 +8,7 @@ using System.Net;
 using System.Text;
 using System.Threading;
 using System.Linq;
+using System.Data.SQLite;
 
 namespace LiveResults.Model
 {
@@ -17,9 +18,9 @@ namespace LiveResults.Model
     public class EmmaMysqlClient : IDisposable
     {
         private readonly bool m_calculateTotals;
-        private MySqlConnection m_totalConnection;
+        private SQLiteConnection m_totalConnection;
         private readonly string m_totalConnStr;
-        private readonly int m_etappNr;
+        private readonly int m_etappNr = 0;
 
         public delegate void ResultChangedDelegate(Runner runner, int position);
         public event ResultChangedDelegate ResultChanged;
@@ -135,7 +136,7 @@ namespace LiveResults.Model
         private readonly List<DbItem> m_itemsToUpdate;
         private readonly bool m_assignIDsInternally;
         private int m_nextInternalId = 1;
-        public EmmaMysqlClient(string server, int port, string user, string pass, string database, int competitionID, bool assignIDsInternally = false)
+        public EmmaMysqlClient(string server, int port, string user, string pass, string database, int competitionID, bool assignIDsInternally = false, bool disableTotalCalculation = false)
         {
             m_runners = new Dictionary<int, Runner>();
             m_classRadioControls = new Dictionary<string, RadioControl[]>();
@@ -147,18 +148,27 @@ namespace LiveResults.Model
             m_compID = competitionID;
 
 
-            m_calculateTotals = ConfigurationManager.AppSettings["calculateTotals"] == "true";
+            if (disableTotalCalculation) m_calculateTotals = false;
+            else m_calculateTotals = ConfigurationManager.AppSettings["calculateTotals"] == "true";
             if (m_calculateTotals)
             {
-                m_etappNr = Int32.Parse(ConfigurationManager.AppSettings["etappNr"]);
-
-                string tserver = ConfigurationManager.AppSettings["totalServer"];
-                if (tserver == null) m_calculateTotals = false;
+                string totaldb = ConfigurationManager.AppSettings["totalDatabase"];
+                if (totaldb == null) m_calculateTotals = false;
                 else
                 {
-                    string[] parts = tserver.Split(';');
-                    m_totalConnStr = "Database=" + parts[3] + ";Data Source=" + parts[0] + ";User Id=" + parts[1] + ";Password=" + parts[2];
+                    m_totalConnStr = "DataSource=" + totaldb + ";";
                 }
+
+                SQLiteConnection conntemp = new SQLiteConnection(m_totalConnStr);
+                conntemp.Open();
+                SQLiteCommand cmd = conntemp.CreateCommand();
+                cmd.CommandText = "SELECT etappnr FROM settings WHERE setting_id=1";
+                SQLiteDataReader reader = cmd.ExecuteReader();
+                reader.Read();
+                m_etappNr = Convert.ToInt32(reader["etappnr"]);
+                reader.Close();
+                conntemp.Close();
+
             }
         }
 
@@ -749,9 +759,8 @@ namespace LiveResults.Model
                 {
                     if (m_calculateTotals)
                     {
-                        m_totalConnection = new MySqlConnection(m_totalConnStr);
+                        m_totalConnection = new SQLiteConnection(m_totalConnStr);
                         m_totalConnection.Open();
-                        SetCodePage(m_totalConnection);
                     }
                     if (!runOffline)
                     {
@@ -766,7 +775,7 @@ namespace LiveResults.Model
                             var item = m_itemsToUpdate[0];
                             if (m_calculateTotals)
                             {
-                                using (MySqlCommand cmdT = m_totalConnection.CreateCommand())
+                                using (SQLiteCommand cmdT = m_totalConnection.CreateCommand())
                                 {
                                     if (item is Runner)
                                     {
@@ -774,13 +783,12 @@ namespace LiveResults.Model
                                         int idrunners = 0;
 
                                         // Regardless of change, for total results we need to get this runners id or create new. (Cannot use dbid as it is different for each stage)
-
                                         cmdT.Parameters.Clear();
-                                        cmdT.Parameters.AddWithValue("?name", Encoding.UTF8.GetBytes(r.Name));
-                                        cmdT.Parameters.AddWithValue("?club", Encoding.UTF8.GetBytes(r.Club ?? ""));
-                                        cmdT.Parameters.AddWithValue("?class", Encoding.UTF8.GetBytes(r.Class));
-                                        cmdT.CommandText = "SELECT idrunners FROM runners WHERE name = ?name AND club = ?club AND class = ?class";
-                                        MySqlDataReader reader = cmdT.ExecuteReader();
+                                        cmdT.Parameters.AddWithValue("@name", Encoding.UTF8.GetBytes(r.Name));
+                                        cmdT.Parameters.AddWithValue("@club", Encoding.UTF8.GetBytes(r.Club ?? ""));
+                                        cmdT.Parameters.AddWithValue("@class", Encoding.UTF8.GetBytes(r.Class));
+                                        cmdT.CommandText = "SELECT idrunners FROM runners WHERE name = @name AND club = @club AND class = @class";
+                                        SQLiteDataReader reader = cmdT.ExecuteReader();
                                         if (reader.Read())
                                         {
                                             idrunners = Convert.ToInt32(reader["idrunners"]);
@@ -789,9 +797,9 @@ namespace LiveResults.Model
                                         else
                                         {
                                             reader.Close();
-                                            cmdT.CommandText = "INSERT INTO runners (name,club,class) VALUES (?name,?club,?class)";
+                                            cmdT.CommandText = "INSERT INTO runners (name,club,class) VALUES (@name,@club,@class)";
                                             cmdT.ExecuteNonQuery();
-                                            idrunners = Convert.ToInt32(cmdT.LastInsertedId);
+                                            idrunners = Convert.ToInt32(m_totalConnection.LastInsertRowId);
                                         }
 
                                         // r.RunnerUpdated - For total results, we don't care if runner is updated (change of name,club,class will create new record, can't be avoided)
@@ -801,11 +809,12 @@ namespace LiveResults.Model
                                         if (r.ResultUpdated)
                                         {
 
-                                            cmdT.Parameters.Clear();
-                                            cmdT.Parameters.AddWithValue("?idrunners", idrunners);
                                             int totaltime;
                                             int totalstatus;
                                             int previoustotaltime = 0;
+
+                                            cmdT.Parameters.Clear();
+                                            cmdT.Parameters.AddWithValue("@idrunners", idrunners);
 
                                             if (m_etappNr == 1)
                                             {
@@ -816,7 +825,7 @@ namespace LiveResults.Model
                                             else
                                             {
                                                 // Get total time and status from previous stage
-                                                cmdT.CommandText = "SELECT totaltid,totalstatus FROM etappresults WHERE idrunners=?idrunners AND etappnr = " + (m_etappNr - 1);
+                                                cmdT.CommandText = "SELECT totaltid,totalstatus FROM etappresults WHERE idrunners=@idrunners AND etappnr = " + (m_etappNr - 1);
                                                 reader = cmdT.ExecuteReader();
                                                 if (reader.Read())
                                                 {
@@ -848,15 +857,14 @@ namespace LiveResults.Model
                                                 reader.Close();
                                             }
 
-                                            cmdT.Parameters.AddWithValue("?etappnr", m_etappNr);
-                                            cmdT.Parameters.AddWithValue("?time", r.Time);
-                                            cmdT.Parameters.AddWithValue("?status", r.Status);
-                                            cmdT.Parameters.AddWithValue("?totaltime", totaltime);
-                                            cmdT.Parameters.AddWithValue("?totalstatus", totalstatus);
-                                            cmdT.Parameters.AddWithValue("?etappstarttime", r.StartTime);
-                                            cmdT.Parameters.AddWithValue("?predictionstarttime", r.StartTime - previoustotaltime); //Prediktion av hur länge man varit ute totalt = etapp starttid + totaltid föregående etapp
-
-                                            cmdT.CommandText = "REPLACE INTO etappresults (idrunners,etappnr,etapptid,totaltid,etappstatus,totalstatus,etappstarttime,predictionstarttime) VALUES (?idrunners,?etappnr,?time,?totaltime,?status,?totalstatus,?etappstarttime,?predictionstarttime)";
+                                            cmdT.Parameters.AddWithValue("@etappnr", m_etappNr);
+                                            cmdT.Parameters.AddWithValue("@time", r.Time);
+                                            cmdT.Parameters.AddWithValue("@status", r.Status);
+                                            cmdT.Parameters.AddWithValue("@totaltime", totaltime);
+                                            cmdT.Parameters.AddWithValue("@totalstatus", totalstatus);
+                                            cmdT.Parameters.AddWithValue("@etappstarttime", r.StartTime);
+                                            cmdT.Parameters.AddWithValue("@predictionstarttime", r.StartTime - previoustotaltime); //Prediktion av hur länge man varit ute totalt = etapp starttid + totaltid föregående etapp
+                                            cmdT.CommandText = "REPLACE INTO etappresults (idrunners,etappnr,etapptid,totaltid,etappstatus,totalstatus,etappstarttime,predictionstarttime,changed) VALUES (@idrunners,@etappnr,@time,@totaltime,@status,@totalstatus,@etappstarttime,@predictionstarttime, STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW'))";
                                             cmdT.ExecuteNonQuery();
 
                                            
@@ -1016,7 +1024,7 @@ namespace LiveResults.Model
                                             cmd.Parameters.AddWithValue("?starttime", r.StartTime);
                                             cmd.Parameters.AddWithValue("?status", r.Status);
                                             cmd.CommandText = "REPLACE INTO results (tavid,dbid,control,time,status,changed) VALUES(?compid,?id,100,?starttime,?status,Now())";
-                                            if (!runOffline) cmd.ExecuteNonQuery();
+                                            cmd.ExecuteNonQuery();
                                             cmd.Parameters.Clear();
                                             FireLogMsg("Runner " + r.Name + "s starttime updated in DB");
                                             r.StartTimeUpdated = false;
@@ -1036,7 +1044,7 @@ namespace LiveResults.Model
                                                 cmd.Parameters["?time"].Value = t.Time;
                                                 cmd.CommandText = "REPLACE INTO results (tavid,dbid,control,time,status,changed) VALUES(" + m_compID + "," + r.ID + "," + t.Control + "," + t.Time +
                                                                   ",0,Now())";
-                                                if (!runOffline) cmd.ExecuteNonQuery();
+                                                cmd.ExecuteNonQuery();
                                                 t.Updated = false;
                                                 FireLogMsg("Runner " + r.Name + " splittime{" + t.Control + "} updated in DB");
                                             }

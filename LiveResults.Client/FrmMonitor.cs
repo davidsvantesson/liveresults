@@ -12,14 +12,16 @@ namespace LiveResults.Client
     {
         IExternalSystemResultParser m_Parser;
         List<EmmaMysqlClient> m_Clients = new List<EmmaMysqlClient>();
+        private bool m_disableTotalCalculation;
 
 #if _CASPARCG_
         private CasparClient.CasparControlFrm casparForm = null;
 #endif
-        public FrmMonitor()
+        public FrmMonitor(bool disableTotalCalculation = false)
         {
             InitializeComponent();
             Text = Text += ", " + Encoding.Default.EncodingName + "," + Encoding.Default.CodePage;
+            m_disableTotalCalculation = disableTotalCalculation;
         }
 
         private int m_CompetitionID;
@@ -98,7 +100,7 @@ namespace LiveResults.Client
 
                 foreach (EmmaMysqlClient.EmmaServer srv in servers)
                 {
-                    EmmaMysqlClient cli = new EmmaMysqlClient(srv.Host, 3309, srv.User, srv.Pw, srv.DB, m_CompetitionID);
+                    EmmaMysqlClient cli = new EmmaMysqlClient(srv.Host, 3309, srv.User, srv.Pw, srv.DB, m_CompetitionID, false, m_disableTotalCalculation);
                     m_Clients.Add(cli);
                     cli.OnLogMessage += new LogMessageDelegate(cli_OnLogMessage);
                     cli.Start();

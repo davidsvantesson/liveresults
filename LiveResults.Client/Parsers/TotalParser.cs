@@ -9,19 +9,22 @@ using System.IO;
 using System.Linq;
 using System.Xml;
 using LiveResults.Model;
+using System.Data.SQLite;
+using System.Data.SqlTypes;
+
 namespace LiveResults.Client
 {
     
     public class TotalParser : IExternalSystemResultParser
     {
-        private readonly IDbConnection m_connection;
+        private readonly SQLiteConnection m_connection;
         private readonly int m_nrStages;
         public event ResultDelegate OnResult;
         public event LogMessageDelegate OnLogMessage;
 
         private bool m_continue;
         
-        public TotalParser(IDbConnection conn, int nrStages)
+        public TotalParser(SQLiteConnection conn, int nrStages)
         {
             m_connection = conn;
             m_nrStages = nrStages;
@@ -63,25 +66,18 @@ namespace LiveResults.Client
                 {
                     if (m_connection.State != ConnectionState.Open)
                     {
-                        if (m_connection is System.Data.H2.H2Connection)
-                        {
-                            (m_connection as System.Data.H2.H2Connection).Open("root", "");
-                        }
-                        else
-                        {
-                            m_connection.Open();
-                        }
+                        m_connection.Open();
                     }
 
-                    string paramOper = "?";
-                    if (m_connection is MySql.Data.MySqlClient.MySqlConnection)
-                    {
-                        paramOper = "?date";
-                    }
+                    SQLiteCommand cmd = m_connection.CreateCommand();
+                    // Get time to start from 
+                    cmd.CommandText = "SELECT startreadfromtime FROM settings WHERE setting_id=1";
+                    SQLiteDataReader reader = cmd.ExecuteReader();
+                    reader.Read();
+                    DateTime lastDateTime = (DateTime)reader["startreadfromtime"]; // reader.GetDateTime(reader.GetOrdinal("startreadfromtime"));
+                    reader.Close();
 
-                    IDbCommand cmd = m_connection.CreateCommand();
-
-
+                    string paramOper = "@date";
                     string baseCommand = "SELECT etappresults.changed, etappresults.idrunners, etappnr, totaltid, totalstatus, predictionstarttime, name, club, class FROM etappresults, runners WHERE etappresults.idrunners = runners.idrunners AND etappresults.changed > " + paramOper;
 
                     ReadRadioControls();
@@ -89,24 +85,18 @@ namespace LiveResults.Client
                     cmd.CommandText = baseCommand;
                     IDbDataParameter param = cmd.CreateParameter();
                     param.ParameterName = "date";
-                    if (m_connection is MySql.Data.MySqlClient.MySqlConnection || m_connection is System.Data.H2.H2Connection)
-                    {
-                        param.DbType = DbType.String;
-                        param.Value = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-                    }
-                    else
-                    {
-                        param.DbType = DbType.DateTime;
-                        param.Value = DateTime.Now;
-                    }
+                    param.DbType = DbType.String;
+                    //param.Value = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                    //param.DbType = DbType.DateTime;
+                    //param.Value = DateTime.Now;
                                        
-                    DateTime lastDateTime = DateTime.Now.AddMonths(-120);
+                    //DateTime lastDateTime = DateTime.Now.AddMonths(-120);
                     param.Value = lastDateTime;
 
                     cmd.Parameters.Add(param);
 
                     FireLogMsg("Total Monitor thread started");
-                    IDataReader reader = null;
+                    //SQLiteDataReader reader = null;
                     var runnerPairs = new Dictionary<int, RunnerPair>();
                     while (m_continue)
                     {
@@ -115,15 +105,8 @@ namespace LiveResults.Client
                         {
                             /*Kontrollera om nya klasser*/
                             /*Kontrollera om nya resultat*/
-                            if (cmd is MySql.Data.MySqlClient.MySqlCommand || m_connection is System.Data.H2.H2Connection)
-                            {
-                                (cmd.Parameters["date"] as IDbDataParameter).Value = lastDateTime.ToString("yyyy-MM-dd HH:mm:ss.fff");
-                            }
-                            else
-                            {
-                                (cmd.Parameters["date"] as IDbDataParameter).Value = lastDateTime;
-                            }
-
+                            (cmd.Parameters["date"] as IDbDataParameter).Value = lastDateTime.ToString("yyyy-MM-dd HH:mm:ss.fff");
+                            //(cmd.Parameters["date"] as IDbDataParameter).Value = lastDateTime;
 
                             cmd.Prepare();
                             reader = cmd.ExecuteReader();
@@ -134,8 +117,8 @@ namespace LiveResults.Client
                                 
                                 try
                                 {
-                                    string sModDate = Convert.ToString(reader["changed"]);
-                                    DateTime modDate = ParseDateTime(sModDate);
+                                    //string sModDate = Convert.ToString(reader["changed"]);
+                                    DateTime modDate = (DateTime)reader["changed"]; // ParseDateTime(sModDate);
                                     lastDateTime = (modDate > lastDateTime ? modDate : lastDateTime);
                                     runnerID = Convert.ToInt32(reader["idrunners"].ToString());
 
@@ -237,6 +220,13 @@ namespace LiveResults.Client
                             }
                         }
                     }
+
+                    // Save datetime to avoid reading same data again
+                    cmd.Parameters.Clear();
+                    cmd.Parameters.AddWithValue("@startreadfromtime", lastDateTime);
+                    cmd.CommandText = "UPDATE settings SET startreadfromtime=@startreadfromtime WHERE setting_id=1";
+                    cmd.ExecuteNonQuery();
+
                 }
                 catch (Exception ee)
                 {
@@ -287,13 +277,13 @@ namespace LiveResults.Client
         private static DateTime ParseDateTime(string tTime)
         {
             DateTime startTime;
-            if (!DateTime.TryParseExact(tTime, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.None, out startTime))
+            if (!DateTime.TryParseExact(tTime, "yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture, DateTimeStyles.None, out startTime))
             {
-                if (!DateTime.TryParseExact(tTime, "yyyy-MM-dd HH:mm:ss.f", CultureInfo.InvariantCulture, DateTimeStyles.None, out startTime))
+                if (!DateTime.TryParseExact(tTime, "yyyy-MM-dd HH:mm:ss.ff", CultureInfo.InvariantCulture, DateTimeStyles.None, out startTime))
                 {
-                    if (!DateTime.TryParseExact(tTime, "yyyy-MM-dd HH:mm:ss.ff", CultureInfo.InvariantCulture, DateTimeStyles.None, out startTime))
+                    if (!DateTime.TryParseExact(tTime, "yyyy-MM-dd HH:mm:ss.f", CultureInfo.InvariantCulture, DateTimeStyles.None, out startTime))
                     {
-                        if (!DateTime.TryParseExact(tTime, "yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture, DateTimeStyles.None, out startTime))
+                        if (!DateTime.TryParseExact(tTime, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.None, out startTime))
                         {
                         }
                     }
