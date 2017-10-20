@@ -22,6 +22,8 @@ namespace LiveResults.Client
         public event ResultDelegate OnResult;
         public event LogMessageDelegate OnLogMessage;
 
+        public string[] ignoredClasses = { "Insk" };
+
         private bool m_continue;
         
         public TotalParser(SQLiteConnection conn, int nrStages)
@@ -144,7 +146,7 @@ namespace LiveResults.Client
                                     time is seconds * 100
                                  */
 
-                                if (status != 999)
+                                if (status != 999 && !ignoredClasses.Contains(classN))
                                 {
                                     if (etappnr==m_nrStages)
                                     {
