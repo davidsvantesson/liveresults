@@ -42,6 +42,7 @@
             this.flowLayoutPanel2 = new System.Windows.Forms.FlowLayoutPanel();
             this.button7 = new System.Windows.Forms.Button();
             this.button8 = new System.Windows.Forms.Button();
+            this.OeventInfo = new System.Windows.Forms.Label();
             this.flowLayoutPanel1.SuspendLayout();
             this.flowLayoutPanel2.SuspendLayout();
             this.SuspendLayout();
@@ -178,9 +179,9 @@
             this.label2.AutoSize = true;
             this.label2.Location = new System.Drawing.Point(16, 328);
             this.label2.Name = "label2";
-            this.label2.Size = new System.Drawing.Size(82, 13);
+            this.label2.Size = new System.Drawing.Size(42, 13);
             this.label2.TabIndex = 3;
-            this.label2.Text = "Recent projects";
+            this.label2.Text = "Oevent";
             // 
             // flowLayoutPanel2
             // 
@@ -192,7 +193,7 @@
             this.flowLayoutPanel2.FlowDirection = System.Windows.Forms.FlowDirection.TopDown;
             this.flowLayoutPanel2.Location = new System.Drawing.Point(16, 345);
             this.flowLayoutPanel2.Name = "flowLayoutPanel2";
-            this.flowLayoutPanel2.Size = new System.Drawing.Size(465, 98);
+            this.flowLayoutPanel2.Size = new System.Drawing.Size(465, 102);
             this.flowLayoutPanel2.TabIndex = 4;
             this.flowLayoutPanel2.Paint += new System.Windows.Forms.PaintEventHandler(this.flowLayoutPanel2_Paint);
             // 
@@ -216,11 +217,21 @@
             this.button8.UseVisualStyleBackColor = true;
             this.button8.Click += new System.EventHandler(this.button8_Click);
             // 
+            // OeventInfo
+            // 
+            this.OeventInfo.AutoSize = true;
+            this.OeventInfo.Location = new System.Drawing.Point(23, 450);
+            this.OeventInfo.Name = "OeventInfo";
+            this.OeventInfo.Size = new System.Drawing.Size(35, 13);
+            this.OeventInfo.TabIndex = 10;
+            this.OeventInfo.Text = "label3";
+            // 
             // FrmNewCompetition
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(493, 452);
+            this.ClientSize = new System.Drawing.Size(493, 534);
+            this.Controls.Add(this.OeventInfo);
             this.Controls.Add(this.flowLayoutPanel2);
             this.Controls.Add(this.label2);
             this.Controls.Add(this.label1);
@@ -255,5 +266,6 @@
         private System.Windows.Forms.Button button6;
         private System.Windows.Forms.Button button7;
         private System.Windows.Forms.Button button8;
+        private System.Windows.Forms.Label OeventInfo;
     }
 }

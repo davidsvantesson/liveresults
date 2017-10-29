@@ -17,6 +17,55 @@ namespace LiveResults.Client
         public FrmNewCompetition()
         {
             InitializeComponent();
+
+            if (ConfigurationManager.AppSettings["calculateTotals"] != "true")
+            {
+                OeventInfo.Text = "Beräkning av totalresultat inte aktiverat";
+            }
+            else if (ConfigurationManager.AppSettings["totalDatabase"] == null) {
+                OeventInfo.Text = "Databas inte konfigurerard för totalresultat!";
+            }
+            else if (!File.Exists(ConfigurationManager.AppSettings["totalDatabase"])) {
+                OeventInfo.Text = "Databas för totalresultat finns inte. Klicka på Skapa Ny ovan";
+            }
+            else
+            {
+                string totaldb = ConfigurationManager.AppSettings["totalDatabase"];
+                string totalConnStr = "DataSource=" + totaldb + ";";
+                SQLiteConnection conntemp = new SQLiteConnection(totalConnStr);
+                conntemp.Open();
+                SQLiteCommand cmd = conntemp.CreateCommand();
+                cmd.CommandText = "SELECT etappnr FROM settings WHERE setting_id=1";
+                SQLiteDataReader reader = cmd.ExecuteReader();
+                reader.Read();
+                int etappNr = Convert.ToInt32(reader["etappnr"]);
+                reader.Close();
+                conntemp.Close();
+
+                OeventInfo.Text = "Totalresultat aktivt. Nuvarande etapp: " + etappNr;
+
+
+
+            }
+
+            if (ConfigurationManager.AppSettings["totalIgnoreClasses"] != null)
+            {
+                OeventInfo.Text += System.Environment.NewLine + "Totalresultat ignorerade klasser: ";
+                bool first = true;
+                List <string> totalIgnoredClasses = new List<string>(ConfigurationManager.AppSettings["totalIgnoreClasses"].Split(new char[] { ';' }));
+                totalIgnoredClasses.ForEach(delegate (string ignoredClass)
+                {
+                    if (first) first = false;
+                    else OeventInfo.Text += ", ";
+                    OeventInfo.Text += ignoredClass;
+                });
+            }
+
+
+                if (ConfigurationManager.AppSettings["runoffline"] == "true")
+            {
+                OeventInfo.Text += System.Environment.NewLine + "Offline mode aktivt";
+            }
         }
 
         private void flowLayoutPanel1_Paint(object sender, PaintEventArgs e)
@@ -263,6 +312,8 @@ namespace LiveResults.Client
 
             m_connection.Close();
 
+            OeventInfo.Text += System.Environment.NewLine + "Databas för totalresultat skapat (Etapp 1 aktivt)";
+
         }
 
         private void button8_Click(object sender, EventArgs e)
@@ -292,6 +343,8 @@ namespace LiveResults.Client
             cmd.ExecuteNonQuery();
 
             m_connection.Close();
+
+            OeventInfo.Text += System.Environment.NewLine + "Etapp nr " + nextetappnr + " aktiverat.";
 
         }
     }

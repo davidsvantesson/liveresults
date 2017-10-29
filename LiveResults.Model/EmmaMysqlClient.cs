@@ -21,6 +21,7 @@ namespace LiveResults.Model
         private SQLiteConnection m_totalConnection;
         private readonly string m_totalConnStr;
         private readonly int m_etappNr = 0;
+        private List<string> totalIgnoredClasses;
 
         public delegate void ResultChangedDelegate(Runner runner, int position);
         public event ResultChangedDelegate ResultChanged;
@@ -147,7 +148,14 @@ namespace LiveResults.Model
             m_connection = new MySqlConnection(m_connStr);
             m_compID = competitionID;
 
-
+            if (ConfigurationManager.AppSettings["totalIgnoreClasses"] != null)
+            {
+                totalIgnoredClasses = new List<string>(ConfigurationManager.AppSettings["totalIgnoreClasses"].Split(new char[] { ';' }));
+            } else
+            {
+                totalIgnoredClasses = new List<string>();
+            }
+                
             if (disableTotalCalculation) m_calculateTotals = false;
             else m_calculateTotals = ConfigurationManager.AppSettings["calculateTotals"] == "true";
             if (m_calculateTotals)
@@ -780,94 +788,98 @@ namespace LiveResults.Model
                                     if (item is Runner)
                                     {
                                         var r = item as Runner;
-                                        int idrunners = 0;
-
-                                        // Regardless of change, for total results we need to get this runners id or create new. (Cannot use dbid as it is different for each stage)
-                                        cmdT.Parameters.Clear();
-                                        cmdT.Parameters.AddWithValue("@name", Encoding.UTF8.GetBytes(r.Name));
-                                        cmdT.Parameters.AddWithValue("@club", Encoding.UTF8.GetBytes(r.Club ?? ""));
-                                        cmdT.Parameters.AddWithValue("@class", Encoding.UTF8.GetBytes(r.Class));
-                                        cmdT.CommandText = "SELECT idrunners FROM runners WHERE name = @name AND club = @club AND class = @class";
-                                        SQLiteDataReader reader = cmdT.ExecuteReader();
-                                        if (reader.Read())
+                                        if (!totalIgnoredClasses.Contains(r.Class))
                                         {
-                                            idrunners = Convert.ToInt32(reader["idrunners"]);
-                                            reader.Close();
-                                        }
-                                        else
-                                        {
-                                            reader.Close();
-                                            cmdT.CommandText = "INSERT INTO runners (name,club,class) VALUES (@name,@club,@class)";
-                                            cmdT.ExecuteNonQuery();
-                                            idrunners = Convert.ToInt32(m_totalConnection.LastInsertRowId);
-                                        }
+                                            int idrunners = 0;
 
-                                        // r.RunnerUpdated - For total results, we don't care if runner is updated (change of name,club,class will create new record, can't be avoided)
 
-                                        if (r.StartTimeUpdated) r.ResultUpdated = true; //Start time for total results saved in ResultUpdated
-
-                                        if (r.ResultUpdated)
-                                        {
-
-                                            int totaltime;
-                                            int totalstatus;
-                                            int previoustotaltime = 0;
-
+                                            // Regardless of change, for total results we need to get this runners id or create new. (Cannot use dbid as it is different for each stage)
                                             cmdT.Parameters.Clear();
-                                            cmdT.Parameters.AddWithValue("@idrunners", idrunners);
-
-                                            if (m_etappNr == 1)
+                                            cmdT.Parameters.AddWithValue("@name", Encoding.UTF8.GetBytes(r.Name));
+                                            cmdT.Parameters.AddWithValue("@club", Encoding.UTF8.GetBytes(r.Club ?? ""));
+                                            cmdT.Parameters.AddWithValue("@class", Encoding.UTF8.GetBytes(r.Class));
+                                            cmdT.CommandText = "SELECT idrunners FROM runners WHERE name = @name AND club = @club AND class = @class";
+                                            SQLiteDataReader reader = cmdT.ExecuteReader();
+                                            if (reader.Read())
                                             {
-                                                // For first stage total time and status is same as for the stage.
-                                                totaltime = r.Time;
-                                                totalstatus = r.Status;
+                                                idrunners = Convert.ToInt32(reader["idrunners"]);
+                                                reader.Close();
                                             }
                                             else
                                             {
-                                                // Get total time and status from previous stage
-                                                cmdT.CommandText = "SELECT totaltid,totalstatus FROM etappresults WHERE idrunners=@idrunners AND etappnr = " + (m_etappNr - 1);
-                                                reader = cmdT.ExecuteReader();
-                                                if (reader.Read())
+                                                reader.Close();
+                                                cmdT.CommandText = "INSERT INTO runners (name,club,class) VALUES (@name,@club,@class)";
+                                                cmdT.ExecuteNonQuery();
+                                                idrunners = Convert.ToInt32(m_totalConnection.LastInsertRowId);
+                                            }
+
+                                            // r.RunnerUpdated - For total results, we don't care if runner is updated (change of name,club,class will create new record, can't be avoided)
+
+                                            if (r.StartTimeUpdated) r.ResultUpdated = true; //Start time for total results saved in ResultUpdated
+
+                                            if (r.ResultUpdated)
+                                            {
+
+                                                int totaltime;
+                                                int totalstatus;
+                                                int previoustotaltime = 0;
+
+                                                cmdT.Parameters.Clear();
+                                                cmdT.Parameters.AddWithValue("@idrunners", idrunners);
+
+                                                if (m_etappNr == 1)
                                                 {
-                                                    // Result exist for previous stage
-                                                    int previousstatus = Convert.ToInt32(reader["totalstatus"]);
-                                                    previoustotaltime = Convert.ToInt32(reader["totaltid"]);
-
-                                                    totaltime = previoustotaltime + r.Time;
-
-                                                    if (previousstatus == 0)
-                                                    {
-                                                        // Previous Passed. New total status is this competition status
-                                                        totalstatus = r.Status;
-                                                    }
-                                                    else
-                                                    {
-                                                        // For simplicity we keep previous status it is not passed, no total time calculated
-                                                        totalstatus = previousstatus;
-                                                    }
-
+                                                    // For first stage total time and status is same as for the stage.
+                                                    totaltime = r.Time;
+                                                    totalstatus = r.Status;
                                                 }
                                                 else
                                                 {
-                                                    // No result exist. Endast tävlande som sprungit alla etapper får totalresultat
-                                                    totalstatus = 999; // Not Participating
-                                                    totaltime = -9;
+                                                    // Get total time and status from previous stage
+                                                    cmdT.CommandText = "SELECT totaltid,totalstatus FROM etappresults WHERE idrunners=@idrunners AND etappnr = " + (m_etappNr - 1);
+                                                    reader = cmdT.ExecuteReader();
+                                                    if (reader.Read())
+                                                    {
+                                                        // Result exist for previous stage
+                                                        int previousstatus = Convert.ToInt32(reader["totalstatus"]);
+                                                        previoustotaltime = Convert.ToInt32(reader["totaltid"]);
 
+                                                        totaltime = previoustotaltime + r.Time;
+
+                                                        if (previousstatus == 0)
+                                                        {
+                                                            // Previous Passed. New total status is this competition status
+                                                            totalstatus = r.Status;
+                                                        }
+                                                        else
+                                                        {
+                                                            // For simplicity we keep previous status it is not passed, no total time calculated
+                                                            totalstatus = previousstatus;
+                                                        }
+
+                                                    }
+                                                    else
+                                                    {
+                                                        // No result exist. Endast tävlande som sprungit alla etapper får totalresultat
+                                                        totalstatus = 999; // Not Participating
+                                                        totaltime = -9;
+
+                                                    }
+                                                    reader.Close();
                                                 }
-                                                reader.Close();
+
+                                                cmdT.Parameters.AddWithValue("@etappnr", m_etappNr);
+                                                cmdT.Parameters.AddWithValue("@time", r.Time);
+                                                cmdT.Parameters.AddWithValue("@status", r.Status);
+                                                cmdT.Parameters.AddWithValue("@totaltime", totaltime);
+                                                cmdT.Parameters.AddWithValue("@totalstatus", totalstatus);
+                                                cmdT.Parameters.AddWithValue("@etappstarttime", r.StartTime);
+                                                cmdT.Parameters.AddWithValue("@predictionstarttime", r.StartTime - previoustotaltime); //Prediktion av hur länge man varit ute totalt = etapp starttid + totaltid föregående etapp
+                                                cmdT.CommandText = "REPLACE INTO etappresults (idrunners,etappnr,etapptid,totaltid,etappstatus,totalstatus,etappstarttime,predictionstarttime,changed) VALUES (@idrunners,@etappnr,@time,@totaltime,@status,@totalstatus,@etappstarttime,@predictionstarttime, STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW'))";
+                                                cmdT.ExecuteNonQuery();
+
+
                                             }
-
-                                            cmdT.Parameters.AddWithValue("@etappnr", m_etappNr);
-                                            cmdT.Parameters.AddWithValue("@time", r.Time);
-                                            cmdT.Parameters.AddWithValue("@status", r.Status);
-                                            cmdT.Parameters.AddWithValue("@totaltime", totaltime);
-                                            cmdT.Parameters.AddWithValue("@totalstatus", totalstatus);
-                                            cmdT.Parameters.AddWithValue("@etappstarttime", r.StartTime);
-                                            cmdT.Parameters.AddWithValue("@predictionstarttime", r.StartTime - previoustotaltime); //Prediktion av hur länge man varit ute totalt = etapp starttid + totaltid föregående etapp
-                                            cmdT.CommandText = "REPLACE INTO etappresults (idrunners,etappnr,etapptid,totaltid,etappstatus,totalstatus,etappstarttime,predictionstarttime,changed) VALUES (@idrunners,@etappnr,@time,@totaltime,@status,@totalstatus,@etappstarttime,@predictionstarttime, STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW'))";
-                                            cmdT.ExecuteNonQuery();
-
-                                           
                                         }
                                     }
                                 }
