@@ -42,6 +42,7 @@
             this.flowLayoutPanel2 = new System.Windows.Forms.FlowLayoutPanel();
             this.button7 = new System.Windows.Forms.Button();
             this.button8 = new System.Windows.Forms.Button();
+            this.button9 = new System.Windows.Forms.Button();
             this.OeventInfo = new System.Windows.Forms.Label();
             this.flowLayoutPanel1.SuspendLayout();
             this.flowLayoutPanel2.SuspendLayout();
@@ -190,6 +191,7 @@
             | System.Windows.Forms.AnchorStyles.Right)));
             this.flowLayoutPanel2.Controls.Add(this.button7);
             this.flowLayoutPanel2.Controls.Add(this.button8);
+            this.flowLayoutPanel2.Controls.Add(this.button9);
             this.flowLayoutPanel2.FlowDirection = System.Windows.Forms.FlowDirection.TopDown;
             this.flowLayoutPanel2.Location = new System.Drawing.Point(16, 345);
             this.flowLayoutPanel2.Name = "flowLayoutPanel2";
@@ -216,6 +218,16 @@
             this.button8.Text = "Initiera nästa Etapp";
             this.button8.UseVisualStyleBackColor = true;
             this.button8.Click += new System.EventHandler(this.button8_Click);
+            // 
+            // button9
+            // 
+            this.button9.Location = new System.Drawing.Point(221, 3);
+            this.button9.Name = "button9";
+            this.button9.Size = new System.Drawing.Size(103, 90);
+            this.button9.TabIndex = 10;
+            this.button9.Text = "Skriv totalresultat till html";
+            this.button9.UseVisualStyleBackColor = true;
+            this.button9.Click += new System.EventHandler(this.button9_Click);
             // 
             // OeventInfo
             // 
@@ -267,5 +279,6 @@
         private System.Windows.Forms.Button button7;
         private System.Windows.Forms.Button button8;
         private System.Windows.Forms.Label OeventInfo;
+        private System.Windows.Forms.Button button9;
     }
 }

@@ -171,7 +171,7 @@ namespace LiveResults.Client
                                             ControlNo = etappnr,
                                             Time = (int)time
                                         };
-                                        if (time>0) times.Add(t);
+                                        if (time>0 && status==0) times.Add(t); // Lägg bara till mellantider om status är ok
 
                                         int settotaltime = 0; // Add status already now
 
