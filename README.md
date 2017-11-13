@@ -1,6 +1,6 @@
 ﻿This is a special version of the live client that calculates total results over several (but independent) stages (simultaneously as publishing live results). The total results can also be published live. Used at O-event, Borås.
 
-# Usage instructions ***
+# Usage instructions
 Instructions in swedish.
 
 ## Före tävling:
