@@ -352,6 +352,12 @@ namespace LiveResults.Client
 
         private void button9_Click(object sender, EventArgs e)
         {
+            PrintTotalResults frm = new PrintTotalResults();
+            frm.ShowDialog();
+        }
+
+        private void button10_Click(object sender, EventArgs e)
+        {
             string totaldb = ConfigurationManager.AppSettings["totalDatabase"];
             if (totaldb == null) return;
             SQLiteConnection m_connection;
@@ -359,122 +365,15 @@ namespace LiveResults.Client
             m_connection = new SQLiteConnection(m_totalConnStr);
             m_connection.Open();
             SQLiteCommand cmd = m_connection.CreateCommand();
+            cmd.CommandText = "DELETE FROM etappresults";
+            cmd.ExecuteNonQuery();
 
-            cmd.CommandText = "SELECT class, name, club, totaltid, totalstatus FROM etappresults, runners WHERE etappresults.idrunners=runners.idrunners AND etappnr=3 ORDER BY class, totalstatus ASC, totaltid ASC, etapptid DESC";
-            SQLiteDataReader reader = cmd.ExecuteReader();
+            cmd.CommandText = "UPDATE settings SET etappnr=1 WHERE setting_id=1";
+            cmd.ExecuteNonQuery();
 
-            string dir = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
-            string filepath = dir + @"\OeventTotal.html";
+            m_connection.Close();
 
-            using (System.IO.StreamWriter file =
-            new System.IO.StreamWriter(filepath, false))
-            {
-                file.WriteLine("<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">");
-                file.WriteLine("<HTML>");
-                file.WriteLine("<HEAD>");
-                file.WriteLine("<META http-equiv=\"Content-Type\" content=\"text/html; charset= utf-8\"><link href=\"default.css\" rel=\"stylesheet\" type=\"text/css\" /><TITLE>O-event, Totalresultat</TITLE>");
-                file.WriteLine("</HEAD><BODY>");
-                file.WriteLine("<H1>O-event, Totalresultat</H1>");
-                file.WriteLine("<H2>2017-11-12</H2>");
-                string classn = "";
-                int pl = 0;
-                string resultatrad;
-                string totaltidstring;
-                int totaltid;
-                int totaltidsegrare = 0;
-                int difftid;
-                string difftidstring;
-                bool validresult = true;
-
-                while (reader.Read())
-                {
-                    if (reader["class"].ToString() != classn)
-                    {
-                        // Ny klass
-                        if (classn != "")
-                        {
-                            file.WriteLine("</TABLE>");
-                        }
-
-                        classn = reader["class"].ToString();
-                        file.WriteLine("<BR><TABLE class=\"klassTabell\"><tr><td class=\"klassRad\">" + classn + "</td><td class=\"klassRad\"></td><td class=\"klassRad\"></td><td class=\"klassRad\"></td><td class=\"klassRad\"></td><td class=\"klassRad\"></td></tr>");
-
-                        file.WriteLine("<TABLE></TABLE>");
-                        file.WriteLine("<TABLE>");
-
-                        pl = 0;
-                        totaltidsegrare = Convert.ToInt32(reader["totaltid"]);
-                    }
-
-                    totaltid = Convert.ToInt32(reader["totaltid"]);
-                    difftid = totaltid - totaltidsegrare;
-                    totaltidstring = (totaltid / 6000) + ":" + ((totaltid % 6000) / 100).ToString("D2");
-                    difftidstring = "+" + (difftid / 6000) + ":" + ((difftid % 6000) / 100).ToString("D2");
-
-                    switch(Convert.ToInt32(reader["totalstatus"]))
-                    {
-                        case 0:
-                            validresult = true;
-                            break;
-                        case 1:
-                            continue; // Skriv inte ut Ej start
-                            //totaltidstring = "Ej start";
-                            //validresult = false;
-                            //break;
-                        case 3:
-                            totaltidstring = "Ej godkänd";
-                            validresult = false;
-                            break;
-                        case 4:
-                            totaltidstring = "Diskvalificerad";
-                            validresult = false;
-                            break;
-                        default:
-                            continue; // Skriv inte ut okända
-                            totaltidstring = "Okänd status";
-                            validresult = false;
-                            break;
-                    }
-                    pl++;
-
-                    if ((pl % 2) == 0)
-                    {
-                        resultatrad = "<tr class=trDark>";
-                    }
-                    else
-                    {
-                        resultatrad = "<tr class=trLight>";
-                    }
-                    if (validresult)
-                    {
-                        resultatrad += "<td>" + pl + "</td>";
-                    }
-                    else
-                    {
-                        resultatrad += "<td>-</td>";
-                    }
-                    resultatrad += "<td></td><td>" + reader["name"].ToString() + "</td><td>" + reader["club"].ToString() + "</td><td>" + totaltidstring + "</td>";
-                    if (validresult)
-                    {
-                        resultatrad += "<td>" + difftidstring + "</td>";
-                    }
-                    else
-                    {
-                        resultatrad += "<td></td>";
-                    }
-                    resultatrad += "</tr>";
-                    
-
-                    file.WriteLine(resultatrad);
-
-                }
-
-                file.WriteLine("</TABLE>");
-                file.WriteLine("<BR><FONT size=\"-1\"><I>Skapad " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "</I></FONT>");
-                file.WriteLine("</BODY></ HTML >");
-            }
-
-            reader.Close();
+            OeventInfo.Text += System.Environment.NewLine + "Resultat raderade. Etapp nr 1 aktiverat.";
         }
     }
 }

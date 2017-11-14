@@ -44,6 +44,7 @@
             this.button8 = new System.Windows.Forms.Button();
             this.button9 = new System.Windows.Forms.Button();
             this.OeventInfo = new System.Windows.Forms.Label();
+            this.button10 = new System.Windows.Forms.Button();
             this.flowLayoutPanel1.SuspendLayout();
             this.flowLayoutPanel2.SuspendLayout();
             this.SuspendLayout();
@@ -180,9 +181,9 @@
             this.label2.AutoSize = true;
             this.label2.Location = new System.Drawing.Point(16, 328);
             this.label2.Name = "label2";
-            this.label2.Size = new System.Drawing.Size(42, 13);
+            this.label2.Size = new System.Drawing.Size(65, 13);
             this.label2.TabIndex = 3;
-            this.label2.Text = "Oevent";
+            this.label2.Text = "Totalresultat";
             // 
             // flowLayoutPanel2
             // 
@@ -191,6 +192,7 @@
             | System.Windows.Forms.AnchorStyles.Right)));
             this.flowLayoutPanel2.Controls.Add(this.button7);
             this.flowLayoutPanel2.Controls.Add(this.button8);
+            this.flowLayoutPanel2.Controls.Add(this.button10);
             this.flowLayoutPanel2.Controls.Add(this.button9);
             this.flowLayoutPanel2.FlowDirection = System.Windows.Forms.FlowDirection.TopDown;
             this.flowLayoutPanel2.Location = new System.Drawing.Point(16, 345);
@@ -221,7 +223,7 @@
             // 
             // button9
             // 
-            this.button9.Location = new System.Drawing.Point(221, 3);
+            this.button9.Location = new System.Drawing.Point(330, 3);
             this.button9.Name = "button9";
             this.button9.Size = new System.Drawing.Size(103, 90);
             this.button9.TabIndex = 10;
@@ -237,6 +239,16 @@
             this.OeventInfo.Size = new System.Drawing.Size(35, 13);
             this.OeventInfo.TabIndex = 10;
             this.OeventInfo.Text = "label3";
+            // 
+            // button10
+            // 
+            this.button10.Location = new System.Drawing.Point(221, 3);
+            this.button10.Name = "button10";
+            this.button10.Size = new System.Drawing.Size(103, 90);
+            this.button10.TabIndex = 11;
+            this.button10.Text = "Nollställ resultat och sätt till första etapp";
+            this.button10.UseVisualStyleBackColor = true;
+            this.button10.Click += new System.EventHandler(this.button10_Click);
             // 
             // FrmNewCompetition
             // 
@@ -280,5 +292,6 @@
         private System.Windows.Forms.Button button8;
         private System.Windows.Forms.Label OeventInfo;
         private System.Windows.Forms.Button button9;
+        private System.Windows.Forms.Button button10;
     }
 }
