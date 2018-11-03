@@ -35,6 +35,9 @@ namespace LiveResults.Model
         private static readonly Dictionary<int,Dictionary<string,int>> m_compsSourceToIdMapping = 
             new Dictionary<int, Dictionary<string, int>>(); 
         private static readonly Dictionary<int,int> m_compsNextGeneratedId = new Dictionary<int, int>(); 
+
+        private static readonly Dictionary<int,int[]> m_runnerPreviousDaysTotalTime = new Dictionary<int, int[]>();
+
         public static int GetIdForSourceIdInCompetition(int compId, string sourceId)
         {
             if (!m_compsSourceToIdMapping.ContainsKey(compId))
@@ -131,7 +134,7 @@ namespace LiveResults.Model
         public event LogMessageDelegate OnLogMessage;
         private MySqlConnection m_connection;
         private readonly string m_connStr;
-        private readonly int m_compID;
+        private int m_compID;
         private readonly Dictionary<int,Runner> m_runners;
         private readonly Dictionary<string, RadioControl[]> m_classRadioControls;
         private readonly List<DbItem> m_itemsToUpdate;
@@ -178,6 +181,11 @@ namespace LiveResults.Model
                 conntemp.Close();
 
             }
+        }
+
+        public void SetCompetitionId(int compId)
+        {
+            m_compID = compId;
         }
 
         private void ResetUpdated()
@@ -321,6 +329,8 @@ namespace LiveResults.Model
                 }
 
 
+                
+
                 cmd.CommandText = "select runners.dbid,control,time,name,club,class,status from runners, results where results.dbid = runners.dbid and results.tavid = " + m_compID + " and runners.tavid = " + m_compID;
                 reader = cmd.ExecuteReader();
                 while (reader.Read())
@@ -354,8 +364,6 @@ namespace LiveResults.Model
                 }
                 reader.Close();
 
-               
-
                 cmd.Dispose();
 
                 ResetUpdated();
@@ -383,6 +391,35 @@ namespace LiveResults.Model
                 m_nextInternalId = m_runners.Count > 0 ? m_runners.Keys.Max() + 1 : 1;
             }
         }
+
+       /* private void LoadDataForPreviousStages(MySqlCommand cmd)
+        {
+            MySqlDataReader reader;
+            if (!string.IsNullOrEmpty(ConfigurationManager.AppSettings["multistage_day1"]))
+            {
+                int stageId = Convert.ToInt32(ConfigurationManager.AppSettings["multistage_day1"]);
+                cmd.CommandText = "select dbid, time, status from results where control = 1000 and tavid = " + stageId;
+                reader = cmd.ExecuteReader();
+
+                while (reader.Read())
+                {
+                    var dbId = Convert.ToInt32(reader["dbId"]);
+                    int time = Convert.ToInt32(reader["time"]);
+                    int status = Convert.ToInt32(reader["status"]);
+                    m_runnerPreviousDaysTotalTime.Add(dbId, new int[]
+                    {
+                        time, status
+                    });
+
+                    if (m_runners.ContainsKey(dbId))
+                    {
+                        m_runners[dbId].SetResultFromPreviousDays(time, status);
+                    }
+                }
+                reader.Close();
+                
+            }
+        }*/
 
         public void UpdateRunnerInfo(int id, string name, string club, string Class, string sourceId)
         {
@@ -438,6 +475,7 @@ namespace LiveResults.Model
             if (!m_runners.ContainsKey(r.ID))
             {
                 m_runners.Add(r.ID, r);
+               
                 m_itemsToUpdate.Add(r);
                 if (!m_currentlyBuffering)
                 {
