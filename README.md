@@ -29,7 +29,7 @@ Efter: Skicka "OeventTotal.db" till nästa etapp-arrangör (efter att du stängt
 5. Stäng fönstret och programmet
 
 ## Ändring av resultat
-Klienten är inte ett tävlingsadministrativt system utan bygger på att resultaten för en etapp inte ändras efter att den "stängs" (efter nästa etapp initieras). Om något resultat för en tidigare etapp är fel så måste alla totalresultat beräknas om. Gör det genom att klicka på "Nollställ resultat och sätt till första etapp". Då behålls information om alla löpare men resultaten kan beräknas om. För att beräkna om resultat från alla etapper är det enklast att använda en "IOF XML" fil. I övrigt är det samma steg som ovan. Se dock om att beräkna totalresultat offline nedan.
+Klienten är inte ett tävlingsadministrativt system utan bygger på att resultaten för en etapp inte ändras efter att den "stängs" (efter nästa etapp initieras). Om något resultat för en tidigare etapp är fel så måste alla totalresultat beräknas om. Gör det genom att klicka på "Nollställ resultat och sätt till första etapp". Då behålls information om alla löpare men resultaten kan beräknas om. För att beräkna om resultat från alla etapper är det enklast att använda en "IOF XML" fil. Tänk på att xml filen måste läggas in i mappen efter det att inläsningen startar (liveresultat-clienten söker efter nya filer i mappen) I övrigt är det samma steg som ovan. Se dock om att beräkna totalresultat offline nedan.
 
 OBS: Det är förståss också möjligt att radera hela databasen och börja om från början. Dock stämmer de interna ID-numren på löparna då inte längre överens med liveresultat-sidan, det bör därför undvikas.
 
