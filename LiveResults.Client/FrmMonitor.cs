@@ -52,9 +52,9 @@ namespace LiveResults.Client
             foreach (EmmaMysqlClient client in m_Clients)
             {
                 if (!client.IsRunnerAdded(newResult.ID))
-                    client.AddRunner(new Runner(newResult.ID, newResult.RunnerName, newResult.RunnerClub, newResult.Class));
+                    client.AddRunner(new Runner(newResult.ID, newResult.RunnerName, newResult.RunnerClub, newResult.Class,null,newResult.bib));
                 else
-                    client.UpdateRunnerInfo(newResult.ID, newResult.RunnerName, newResult.RunnerClub, newResult.Class, null);
+                    client.UpdateRunnerInfo(newResult.ID, newResult.RunnerName, newResult.RunnerClub, newResult.Class, null, newResult.bib);
 
                 if (newResult.StartTime > 0)
                     client.SetRunnerStartTime(newResult.ID, newResult.StartTime);
@@ -83,7 +83,7 @@ namespace LiveResults.Client
                 {
                     listBox1.Invoke(new MethodInvoker(delegate
                     {
-                        listBox1.Items.Insert(0, DateTime.Now.ToString("hh:mm:ss") + " " + msg);
+                        listBox1.Items.Insert(0, DateTime.Now.ToString("HH:mm:ss") + " " + msg);
                     }));
                 }
             }
@@ -130,7 +130,7 @@ namespace LiveResults.Client
             {
                 listBox1.Invoke(new MethodInvoker(delegate
                 {
-                    listBox1.Items.Insert(0, DateTime.Now.ToString("hh:mm:ss") + " " + msg);
+                    listBox1.Items.Insert(0, DateTime.Now.ToString("HH:mm:ss") + " " + msg);
                 }));
             }
         }

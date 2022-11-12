@@ -21,7 +21,7 @@ namespace LiveResults.Client
         public NewOLAComp()
         {
             InitializeComponent();
-            comboBox1.DataSource = new string[] { "OLA Intern Databas", "Mysql-Server", "SQL-Server" };
+            comboBox1.DataSource = new string[] { "OLA Intern Databas", "Mysql-Server"};
             comboBox1.SelectedIndex = 1;
             txtUser.Text = "live";
             txtPw.Text = "live";
@@ -193,9 +193,8 @@ namespace LiveResults.Client
                     conn = GetDBConnection();
                     if (conn != null)
                     {
-                        conn.Open();
                         lstDB.DataSource = null;
-
+                        conn.Open();
                         string[] databases = GetDatabases(conn);
                         lstDB.DataSource = databases;
                     }
@@ -242,7 +241,7 @@ namespace LiveResults.Client
             }
             return dbs.ToArray();
         }
-
+        
         private IDbConnection GetDBConnection()
         {
             return GetDBConnection(null);
@@ -253,7 +252,7 @@ namespace LiveResults.Client
             switch (comboBox1.SelectedIndex)
             {
                 case 0:
-                    return new H2Connection("jdbc:h2://" + txtOlaDb.Text.Replace(".h2.db","") + ";AUTO_SERVER=TRUE", "root", "");
+                    return new H2Connection("jdbc:h2://" + txtOlaDb.Text.Replace(".h2.db","").Replace(".mv.db","") + ";AUTO_SERVER=TRUE", "root", "");
                 case 1:
                     return new MySql.Data.MySqlClient.MySqlConnection("Server=" + txtHost.Text + ";User Id=" + txtUser.Text + ";Port=" + txtPort.Text + ";Password=" + txtPw.Text + (schema != null ? ";Initial Catalog=" + schema : "") + ";charset=utf8;ConnectionTimeout=30");
                 case 2:
@@ -292,7 +291,7 @@ namespace LiveResults.Client
                     if (ee.Message.ToUpper().Contains("ENOUGH RIGHTS"))
                     {
                         conn.Close();
-                        conn = new H2Connection("jdbc:h2://" + txtOlaDb.Text.Replace(".h2.db", "") + ";AUTO_SERVER=TRUE", "root", "");
+                        conn = new H2Connection("jdbc:h2://" + txtOlaDb.Text.Replace(".h2.db", "").Replace(".mv.db","") + ";AUTO_SERVER=TRUE", "root", "");
                         try
                         {
                             conn.Open();

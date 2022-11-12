@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Data;
 using System.Globalization;
 using System.Threading;
@@ -19,12 +20,14 @@ namespace LiveResults.Client
         private bool m_createRadioControls;
         private bool m_continue;
         private bool m_useTenth = false;
-
-        public SSFTimingParser(IDbConnection conn, int eventID, bool recreateRadioControls = true)
+        private bool m_anynomousSplits = false;
+        int baseNum = 10000;
+        public SSFTimingParser(IDbConnection conn, int eventID, bool recreateRadioControls = true, bool anynomousSplits=false)
         {
             m_connection = conn;
             m_eventID = eventID;
             m_createRadioControls = recreateRadioControls;
+            m_anynomousSplits = anynomousSplits;
         }
 
 
@@ -102,10 +105,11 @@ namespace LiveResults.Client
                         var dlg = OnRadioControl;
                         if (dlg != null)
                         {
+                            bool filterInternet = ConfigurationManager.AppSettings["internetSplitsOnly"] != "false";
                             cmd.CommandText =
                                 "select dbclass.Name as className, dbITimeInfo.Name as intermediateName, dbITimeInfo.Ipos, dbITimeInfo.Leg from dbclass, dbITimeInfo where dbclass.RaceId = " +
                                 m_eventID + " and dbITimeInfo.RaceID = " + m_eventID + " and dbITimeInfo.Course = dbclass.course  " +
-                                " and dbiTimeInfo.PresInternet = 'Ja' order by dbclass.Name, ipos";
+                                " " + (filterInternet ? " and dbiTimeInfo.PresInternet ='Ja'" : "") +" order by dbclass.Name, ipos";
 
                             Dictionary<string, int> classMaxLeg = new Dictionary<string, int>();
                             List<IntermediateTime> intermediates = new List<IntermediateTime>();
@@ -139,6 +143,21 @@ namespace LiveResults.Client
                                     }
                                     if (!string.IsNullOrEmpty(intermediateName))
                                         intermediateName = intermediateName.Trim();
+
+                                    if (intermediateName.Contains("-CN"))
+                                    {
+                                        int idxFrom = intermediateName.IndexOf("-CN");
+                                        int idxTo = intermediateName.IndexOf("-", idxFrom + 1);
+                                        intermediateName =
+                                            intermediateName.Replace(
+                                                intermediateName.Substring(idxFrom, idxTo - idxFrom+1), "-");
+                                    }
+
+                                    if (m_anynomousSplits)
+                                    {
+                                        intermediateName = "Split #" + (intermediates.Where(x=>x.ClassName== className).Count() + 1);
+                                    }
+
                                     int position = Convert.ToInt32(reader["Ipos"]);
 
                                     if (isRelay)
@@ -305,13 +324,13 @@ and dbclass.classid = dbName.classid", m_eventID);
                             {
                                 cmd.CommandText = initialCommand +
                                                   string.Format(
-                                                      @" and dbName.Startno in (select distinct startno from dbLog where raceId={0} and logid > {1})", m_eventID,
+                                                      @" and dbName.Startno in (select distinct startno from dbLog where raceId={0} and logid > {1} and isnumeric(startno)=1)", m_eventID,
                                                       lastId);
                                 ParseReader(cmd, out lastRunner, isRelay, relayLegs);
 
                                 cmdSplits.CommandText = initialSplitCommand +
                                                   string.Format(
-                                                      @" and dbName.Startno in (select distinct startno from dbLog where raceId={0} and logid > {1})", m_eventID,
+                                                      @" and dbName.Startno in (select distinct startno from dbLog where raceId={0} and logid > {1} and isnumeric(startno)=1)", m_eventID,
                                                       lastId);
                                 ParseReaderSplits(cmdSplits, out lastRunner, isRelay, relayLegs);
                             }
@@ -362,11 +381,15 @@ and dbclass.classid = dbName.classid", m_eventID);
                 {
                     int time = 0, runnerID = 0, iStartTime = 0;
                     string famName = "", fName = "", club = "", classN = "", status = "";
-
+                    string bibNumber = reader["startno"].ToString();
                     try
                     {
-                       runnerID = Convert.ToInt32(reader["startno"].ToString());
 
+                       /* if (!int.TryParse(reader["startno"] as string, out int sn))
+                            continue;*/
+                       runnerID = Convert.ToInt32(reader["startno"].ToString());
+                        if (baseNum > 0)
+                            runnerID = baseNum + runnerID;
                         famName = (reader["lastname"] as string).Trim();
                         fName = (reader["firstname"] as string).Trim();
                         lastRunner = (string.IsNullOrEmpty(fName) ? "" : (fName + " ")) + famName;
@@ -447,7 +470,7 @@ and dbclass.classid = dbName.classid", m_eventID);
                         var res = new Result
                         {
                             ID = runnerID,
-                            RunnerName = fName + " " + famName,
+                            RunnerName = "(" + bibNumber + ") " + fName + " " + famName,
                             RunnerClub = club,
                             Class = classN,
                             StartTime = iStartTime,
@@ -477,7 +500,7 @@ and dbclass.classid = dbName.classid", m_eventID);
                     break;
                 case "DNF":
                     time = -3;
-                    rstatus = 3;
+                    rstatus = 2;
                     break;
                 case "DSQ":
                     time = -4;
@@ -498,14 +521,18 @@ and dbclass.classid = dbName.classid", m_eventID);
                     int time = -2;
                     int status = 0;
                     var splits = new List<ResultStruct>();
+                    /*if (!int.TryParse(reader["startno"] as string, out int sn))
+                        continue;*/
+                    string bibNumber = reader["startno"].ToString();
                     try
                     {
                         runnerID = Convert.ToInt32(reader["startno"].ToString());
-
+                        if (baseNum > 0)
+                            runnerID = baseNum + runnerID;
                         famName = (reader["lastname"] as string).Trim();
                         fName = (reader["firstname"] as string).Trim();
                         lastRunner = (string.IsNullOrEmpty(fName) ? "" : (fName + " ")) + famName;
-
+                        
                         club = (reader["teamname"] as string).Trim();
                         classN = (reader["classname"] as string).Trim();
 
@@ -564,7 +591,7 @@ and dbclass.classid = dbName.classid", m_eventID);
 
                     var res = new Result{
                         ID = runnerID,
-                        RunnerName = fName + " " + famName,
+                        RunnerName = "(" + bibNumber + ") "+ fName + " " + famName,
                         RunnerClub = club,
                         Class = classN,
                         StartTime = 0,
